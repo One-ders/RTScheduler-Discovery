@@ -79,7 +79,7 @@ struct cmd *lookup_cmd(char *name, int fd) {
 		}
 		cmd++;
 	}
-	
+
 	while(cn) {
 		if (strcmp(cn->name,name)==0) {
 			current_node=cn;
@@ -122,7 +122,7 @@ int argit(char *str, int len, char *argv[16]) {
 			if (p>=(str+len)) {
 				ac++;
 				return ac;
-			}		
+			}
 		}
 		*p=0;
 		p++;
@@ -133,4 +133,11 @@ int argit(char *str, int len, char *argv[16]) {
 	}
 	return ac;
 }
+
+int __missing_init_pkg(void) {
+	printf("no user package start function registered\n");
+	return 0;
+}
+
+int init_pkg() __attribute__((weak, alias("__missing_init_pkg")));
 

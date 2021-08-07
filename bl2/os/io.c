@@ -1,4 +1,4 @@
-/* $Nosix/Leanaux: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $micro kernel architecture: , v1.1 2014/04/07 21:44:00 anders Exp $ */
 
 /*
  * Copyright (c) 2014, Anders Franzen.
@@ -36,8 +36,11 @@
 #include "io.h"
 #include "string.h"
 
-static struct driver *iodrv;
-static struct device_handle *dh=0;
+static struct driver *io_drv;
+static struct device_handle *io_dh=0;
+
+static struct driver *syslog_drv;
+static struct device_handle *syslog_dh=0;
 
 typedef int (*P_STR)(char *);
 typedef int (*P_CHAR)(char );
@@ -68,34 +71,34 @@ void io_push() {
 }
 
 int io_add_c(const char c) {
-	if (!dh) return p_char(c);
-	return iodrv->ops->control(dh, WR_CHAR, (char *)&c,1);
+	if (!io_dh) return p_char(c);
+	return io_drv->ops->control(io_dh, WR_CHAR, (char *)&c,1);
 }
 
 int io_add_str(const char *str) {
-	if (!dh) return p_str(str);
-	return iodrv->ops->control(dh, WR_CHAR, (char *)str, __builtin_strlen(str));
+	if (!io_dh) return p_str(str);
+	return io_drv->ops->control(io_dh, WR_CHAR, (char *)str, __builtin_strlen(str));
 }
 
 static char tiob[256];
 int io_add_strn(const char *bytes, int len) {
-	if (!dh) {
+	if (!io_dh) {
 		memcpy(tiob,bytes,len);
 		tiob[len]=0;
 		return p_str(tiob);
 	}
-	return iodrv->ops->control(dh, WR_CHAR, (char *)bytes, len);
+	return io_drv->ops->control(io_dh, WR_CHAR, (char *)bytes, len);
 }
 
 
 int in_print;
 int pulled;
 int io_setpolled(int enabled) {
-	if (!dh) return 0;
+	if (!io_dh) return 0;
 	in_print=0;
 	if (enabled) pulled++;
 	else pulled--;
-	return iodrv->ops->control(dh, WR_POLLED_MODE, &pulled, sizeof(pulled));
+	return io_drv->ops->control(io_dh, WR_POLLED_MODE, &pulled, sizeof(pulled));
 }
 
 
@@ -106,7 +109,7 @@ char *itoa(unsigned int val, char *buf, int bz, int prepend_zero, int prepend_nu
 	int i=0;
 	int j;
 	int to;
-	char p_char=prepend_zero?'0':' ';	
+	char p_char=prepend_zero?'0':' ';
 	char p_neg=0;
 
 	if (val&0x80000000) {
@@ -141,7 +144,7 @@ char *itoa(unsigned int val, char *buf, int bz, int prepend_zero, int prepend_nu
 		buf[0]='-';
 	}
 	buf[i+to]=0;
-	
+
 	return buf;
 }
 
@@ -174,7 +177,7 @@ char *xtoa(unsigned int val, char *buf, int bz, int prepend_zero, int prepend_nu
 	__builtin_memmove(&buf[to],buf,i);
 	__builtin_memset(buf,p_char,to);
 	buf[i+to]=0;
-	
+
 	return buf;
 }
 
@@ -310,7 +313,7 @@ int sys_printf(const char *fmt, ...) {
 		io_setpolled(1);
 	}
 #endif
-	
+
 	va_start(ap,fmt);
 	while(1) {
 		char *cppos;
@@ -386,7 +389,7 @@ int sys_printf(const char *fmt, ...) {
 			}
 		}
 		ppos+=i;
-		
+
 	}
 	va_end(ap);
 #if 0
@@ -399,17 +402,125 @@ int sys_printf(const char *fmt, ...) {
 	return 0;
 }
 
+extern volatile unsigned int tq_tic;
+
+int sys_vsprintf(char *sbuf, const char *fmt, va_list ap) {
+	int i=0;
+	char numericbuf[16];
+	char *p=sbuf;
+
+	while(1) {
+		int c=fmt[i++];
+		if (!c) break;
+		else if (c=='\n') {
+			memcpy(p,"\n\r",2);
+			p=p+2;
+			continue;
+		} else if (c=='%') {
+			int prepend_zero=0, prepend_num=0;
+			i+=parse_fmt(&fmt[i],&prepend_num, &prepend_zero);
+			switch((c=fmt[i++])) {
+				case 's': {
+					char *s=va_arg(ap,char *);
+					int len=strlen(s);
+					memcpy(p,s,strlen(s));
+					p+=len;
+
+					if ((prepend_num-len)>0) {
+						int j;
+						for(j=0;j<(prepend_num-len);j++) {
+							memcpy(p," ",1);
+							p++;
+						}
+					}
+					break;
+				}
+				case 'c': {
+					int gruuk=va_arg(ap, int);
+					memcpy(p,(char *)&gruuk,1);
+					p++;
+				break;
+				}
+				case 'd': {
+					char *s=itoa(va_arg(ap,unsigned int),numericbuf, 16,
+								prepend_zero, prepend_num);
+					int len=strlen(s);
+					memcpy(p,s,len);
+					p+=len;
+					break;
+				}
+				case 'x': {
+					char *s=xtoa(va_arg(ap,unsigned int),numericbuf, 16,
+							prepend_zero, prepend_num);
+					int len=strlen(s);
+					memcpy(p,s,len);
+					p+=len;
+					break;
+				}
+				case 't': {
+					char *s=ts_format(tq_tic,numericbuf, 16);
+					int len=strlen(s);
+					memcpy(p,s,len);
+					p+=len;
+					break;
+				}
+				default: {
+					memcpy(p,"%",1);
+					p++;
+					memcpy(p,(char *)&c,1);
+					p++;
+				}
+			}
+		} else {
+			memcpy(p,(char *)&c,1);
+			p++;
+		}
+	}
+	*p=0;
+	return p-sbuf;
+}
+
+int sys_log(const char *fmt, ...) {
+	char sbuf[256];
+	va_list arg;
+	int size;
+	int nend;
+
+	if (!syslog_dh) return -1;
+
+	va_start(arg,fmt);
+	size=sys_vsprintf(sbuf,fmt,arg);
+	va_end(arg);
+
+	return syslog_drv->ops->control(syslog_dh, WR_CHAR, (char *)sbuf, size);
+}
+
+
 
 void init_io(void) {
-	if (iodrv) return;
-	iodrv=driver_lookup("usart0");
-	if (!iodrv) {
-		return;
+	if (io_drv) goto io_done;
+	io_drv=driver_lookup("usart0");
+	if (!io_drv) {
+		goto io_done;
 	}
-	dh=iodrv->ops->open(iodrv->instance, io_cb_handler, 0);
-	if (!dh) {
-		iodrv=0;
+	io_dh=io_drv->ops->open(io_drv->instance, io_cb_handler, 0);
+	if (!io_dh) {
+		io_drv=0;
 	} else {
 		io_push();    /* to force out prints, done before open */
 	}
+
+io_done:
+	if (syslog_drv) goto syslog_done;
+	syslog_drv=driver_lookup("syslog");
+	if (!syslog_drv) {
+		goto syslog_done;
+	}
+	syslog_dh=syslog_drv->ops->open(syslog_drv->instance, 0, 0);
+	if (!syslog_dh) {
+		syslog_drv=0;
+	}
+
+syslog_done:
+	return;
 }

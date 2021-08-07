@@ -4,6 +4,8 @@ all: $(OBJ)/stddrv $(OBJ)/stddrv/stddrv.o
 $(OBJ)/stddrv:
 	mkdir -p $@
 
+#$(OBJ)/stddrv/syslog.o
+
 $(OBJ)/stddrv/stddrv.o: $(OBJ)/stddrv/procps.o $(OBJ)/stddrv/devls.o $(OBJ)/stddrv/kmem.o
 	$(CC) $(LDFLAGS) -r -nostdlib  -o $@ $^
 

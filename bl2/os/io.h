@@ -46,6 +46,7 @@ typedef unsigned int fd_set;
 
 void init_io(void);
 int io_add_c(const char c);
+int io_add_strn(const char *str, int len);
 int io_setpolled(int enabled);
 
 int sys_printf(const char *format, ...);

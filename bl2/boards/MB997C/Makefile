@@ -1,20 +1,29 @@
 
-DRIVERS:=bdm_itf.o
 DRIVERS+=stddrv.o
 DRIVERS+=usb_core_drv.o
 DRIVERS+=usb_serial_drv.o
-#DRIVERS+=hr_timer.o
-#DRIVERS+=usr_drv.o
+DRIVERS+=hr_timer.o
 
 DTARGETS=$(DRIVERS:.o=)
 DOBJS=$(patsubst %, $(OBJ)/drv_obj/%, $(DRIVERS))
 
+ifneq ($(KREL),)
+				DTARGETS=usr_drivers
+				DOBJS+=$(LOBJ)/drv_obj/usr_drivers.o
+endif
+
 BOARD=MB997C
+ifeq ($(KREL),)
 TOP:=$(shell pwd)/../..
-OBJ:=$(TOP)/boards/$(BOARD)/obj
-GCC_BASE:=$(shell dirname `which arm-none-eabi-gcc`)/..
+OBJ?=$(TOP)/boards/$(BOARD)/obj
 
 GIT_VERSION:=$(shell git describe --abbrev=4 --dirty --always --tags)
+VERSION:=$(shell echo "$(BOARD)-$(GIT_VERSION)")
+LOBJ=$(OBJ)
+else
+TOP:=$(KREL)
+endif
+GCC_BASE:=$(shell dirname `which arm-none-eabi-gcc`)/..
 
 export AS:=arm-none-eabi-as
 export CC:=arm-none-eabi-gcc
@@ -26,11 +35,26 @@ CFLAGS=-I. -I$(TOP)/incl -I$(TOP)/boards/$(BOARD) -I$(TOP)/arch/stm32 -I$(TOP)/a
 CFLAGS_USR:=-I$(TOP)/usr/incl -I$(TOP)/boards/$(BOARD) -I$(GCC_BASE)/lib/gcc/arm-none-eabi/4.8.3/include -g -Os -DDEBUG -fno-builtin -ffreestanding -nostdinc -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
 #LDFLAGS=-g -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fno-builtin
+
+ifeq ($(KREL),)
 LDFLAGS=-g -T./stm32_flash.ld -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -fno-builtin -nostartfiles
+else
+LDFLAGS=-g -T$(KREL)/stm32_flash.ld -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -fno-builtin -nostartfiles
+endif
 
 LDFLAGS_USR=-g -r $(OBJ)/usr/lib/usrlib.o
 
+RELFILES=obj/arch/stm32/stm32.o obj/arch/stm32/stm32f407/stm32f407.o \
+	obj/drv_obj/*.o obj/os/end_sect.o obj/os/init_sect.o obj/os/os.o \
+	obj/usr/lib/usrlib.o obj/usr/sys_cmd/sys_cmd.o Makefile \
+	stm32_flash.ld \
+	$(TOP)/usr/incl $(TOP)/boards/$(BOARD)/*.h \
+	$(TOP)/incl $(TOP)/arch/stm32/*.h $(TOP)/arch/stm32/incl
+
 all: myCore
+
+rel: myCore
+	tar -cvzf krel-$(VERSION).tgz $(RELFILES)
 
 myCore: os version stm32f407 stm32 $(DTARGETS) usr.bin.o
 	$(CC) $(LDFLAGS) -o $@ $(OBJ)/os/init_sect.o \
@@ -40,28 +64,26 @@ myCore: os version stm32f407 stm32 $(DTARGETS) usr.bin.o
 				$(OBJ)/arch/stm32/stm32.o \
 				$(DOBJS) \
 				$(OBJ)/os/end_sect.o \
-				$(OBJ)/usr/usr.bin.o
+				$(LOBJ)/usr/usr.bin.o
 
 version:
 	echo "const char *ver=\"$(BOARD)-$(GIT_VERSION)\";" > $(OBJ)/version.c
 
+os: $(OBJ)/os/os.o
+stddrv: $(OBJ)/drv_obj/stddrv.o
+usb_serial_drv: $(OBJ)/drv_obj/usb_serial_drv.o
+stm32: $(OBJ)/arch/stm32/stm32.o
+stm32f407: stm32 $(OBJ)/arch/stm32/stm32f407/stm32f407.o
+usb_core_drv: $(OBJ)/drv_obj/usb_core_drv.o
+hr_timer: $(OBJ)/drv_obj/hr_timer.o
 
-usr.bin.o: $(OBJ)/usr/sys_cmd/sys_cmd.o
+ifeq ($(KREL),)
+usr.bin.o: $(OBJ)/usr/sys_cmd/sys_cmd.o $(OBJ)/usr/blinky/blinky.o
 	$(LD) -o $(OBJ)/usr/usr.bin.o $(LDFLAGS_USR) $^
 	$(OBJCOPY) --prefix-symbols=__usr_ $(OBJ)/usr/usr.bin.o
+endif
 
-#usr.bin.o: $(OBJ)/usr/sys_cmd/sys_cmd.o $(OBJ)/cec_a1_ctrl/cec_a1_ctrl.o
-#	$(LD) -o $(OBJ)/usr/usr.bin.o $(LDFLAGS_USR) $^
-#	$(OBJCOPY) --prefix-symbols=__usr_ $(OBJ)/usr/usr.bin.o
-
-#usr.bin.o: $(OBJ)/usr/sys_cmd/sys_cmd.o $(OBJ)/usr/blinky/blinky.o $(OBJ)/cec_a1_mon/cec_a1_mon.o
-#	$(LD) -o $(OBJ)/usr/usr.bin.o $(LDFLAGS_USR) $^
-#	$(OBJCOPY) --prefix-symbols=__usr_ $(OBJ)/usr/usr.bin.o
-
-#usr.bin.o: $(OBJ)/usr/sys_cmd/sys_cmd.o $(OBJ)/usr/blinky/blinky.o
-#	$(LD) -o $(OBJ)/usr/usr.bin.o $(LDFLAGS_USR) $^
-#	$(OBJCOPY) --prefix-symbols=__usr_ $(OBJ)/usr/usr.bin.o
-
+ifeq ($(KREL),)
 $(OBJ)/usr/lib/usrlib.o: $(OBJ)/usr/lib $(OBJ)/usr/lib/arm/syscall_lib.o
 	CFLAGS="$(CFLAGS_USR)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $(OBJ)/usr/lib
 
@@ -89,120 +111,77 @@ $(OBJ)/usr/blinky/blinky.o: $(OBJ)/usr/lib/usrlib.o $(OBJ)/usr/blinky
 $(OBJ)/usr/blinky: $(TOP)/usr/blinky
 	mkdir -p $@
 	lndir $< $@
+endif
 
-$(OBJ)/cec_a1_mon/cec_a1_mon.o: $(OBJ)/usr/lib/usrlib.o $(OBJ)/cec_a1_mon
-	CFLAGS="$(CFLAGS_USR)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $(OBJ)/cec_a1_mon
-
-$(OBJ)/cec_a1_mon: $(TOP)/cec_a1_mon
-	mkdir -p $@
-	lndir $< $@
-
-$(OBJ)/cec_a1_ctrl/cec_a1_ctrl.o: $(OBJ)/usr/lib/usrlib.o $(OBJ)/cec_a1_ctrl
-	CFLAGS="$(CFLAGS_USR)" CFLAGS_DRV="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $(OBJ)/cec_a1_ctrl
-
-$(OBJ)/cec_a1_ctrl: $(TOP)/cec_a1_ctrl
-	mkdir -p $@
-	lndir $< $@
+ifeq ($(KREL),)
+usr_drv:
+endif
 
 
-usr_drv: $(OBJ)/cec_a1_ctrl/cec_a1_ctrl.o
-	$(LD) -r -o $(OBJ)/usr/usr.drv.o $(OBJ)/cec_a1_ctrl/cec_a1_drivers.o
-	mkdir -p $(OBJ)/drv_obj
-	cp $(OBJ)/usr/usr.drv.o  $(OBJ)/drv_obj/$@.o
-
-#cec_a1_ctrl: $(OBJ)/cec_a1_ctrl
-#	CFLAGS="$(CFLAGS_USR)" CFLAGS_DRV="$(CFLAGS)" \
-#	LDFLAGS="$(LDFLAGS_USR)" LDFLAGS_DRV="-r" \
-#	TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
-
-#$(OBJ)/cec_a1_ctrl: $(TOP)/cec_a1_ctrl
-#	mkdir -p $@
-#	lndir $< $@
-
-
-
-stddrv: $(OBJ)/stddrv
+ifeq ($(KREL),)
+$(OBJ)/drv_obj/stddrv.o: $(OBJ)/stddrv
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 	mkdir -p $(OBJ)/drv_obj
-	cp  $(OBJ)/stddrv/stddrv.o $(OBJ)/drv_obj/$@.o
+	cp  $(OBJ)/stddrv/stddrv.o $@
+
 
 $(OBJ)/stddrv: $(TOP)/stddrv
 	mkdir -p $@
 	lndir $< $@
 
-os: $(OBJ)/os
+$(OBJ)/os/os.o: $(OBJ)/os
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 
 $(OBJ)/os: $(TOP)/os
 	mkdir -p $@
 	lndir $< $@
 
-usb_serial_drv: $(OBJ)/drivers/usb_serial
+$(OBJ)/drv_obj/usb_serial_drv.o: $(OBJ)/drivers/usb_serial
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 	mkdir -p $(OBJ)/drv_obj
-	cp $(OBJ)/drivers/usb_serial/usb_serial_drv.o  $(OBJ)/drv_obj/$@.o
+	cp $(OBJ)/drivers/usb_serial/usb_serial_drv.o  $@
 
 $(OBJ)/drivers/usb_serial: $(TOP)/drivers/usb_serial
 	mkdir -p $@
 	lndir $< $@
 
-stmusb: $(OBJ)/stmusb
-	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
-
-$(OBJ)/stmusb: $(TOP)/stmusb
-	mkdir -p $@
-	lndir $< $@
-
-stm32: $(OBJ)/arch/stm32
+$(OBJ)/arch/stm32/stm32.o: $(OBJ)/arch/stm32
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 
 $(OBJ)/arch/stm32: $(TOP)/arch/stm32
 	mkdir -p $@
 	lndir $< $@
 
-usb_core_drv: $(OBJ)/arch/stm32/usb
+$(OBJ)/drv_obj/usb_core_drv.o: $(OBJ)/arch/stm32/usb
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 	mkdir -p $(OBJ)/drv_obj
-	cp  $(OBJ)/arch/stm32/usb/usb_drv.o $(OBJ)/drv_obj/$@.o
+	cp  $(OBJ)/arch/stm32/usb/usb_drv.o $@
 
 $(OBJ)/arch/stm32/usb: $(TOP)/arch/stm32/usb
 	mkdir -p $@
 	lndir $< $@
 
-
-stm32f407: stm32 stm32f407do
-
-stm32f407do: $(OBJ)/arch/stm32/stm32f407
+$(OBJ)/arch/stm32/stm32f407/stm32f407.o: $(OBJ)/arch/stm32/stm32f407
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 
 $(OBJ)/arch/stm32/stm32f407: $(TOP)/arch/stm32/stm32f407
 	mkdir -p $@
 	lndir $< $@
 
-hr_timer: stm32f407 hr_timer_build
+$(OBJ)/drv_obj/hr_timer.o: stm32f407 $(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o
 	mkdir -p $(OBJ)/drv_obj
-	cp  $(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o $(OBJ)/drv_obj/$@.o
+	cp  $(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o $@
 
-hr_timer_build: $(OBJ)/arch/stm32/stm32f407/hr_timer
+$(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o: $(OBJ)/arch/stm32/stm32f407/hr_timer
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 
 $(OBJ)/arch/stm32/stm32f407/hr_timer: $(TOP)/arch/stm32/stm32f407/hr_timer
 	mkdir -p $@
 	lndir $< $@
 
-bdm_itf: stm32f407 bdm_itf_build
-	mkdir -p $(OBJ)/drv_obj
-	cp  $(OBJ)/arch/stm32/stm32f407/bdm_itf/bdm_itf.o $(OBJ)/drv_obj/$@.o
-
-bdm_itf_build: $(OBJ)/arch/stm32/stm32f407/bdm_itf
-	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
-
-$(OBJ)/arch/stm32/stm32f407/bdm_itf: $(TOP)/arch/stm32/stm32f407/bdm_itf
-	mkdir -p $@
-	lndir $< $@
-
-
 clean:
 	rm -rf $(OBJECTS) myCore
 	rm -rf tmp
 	rm -rf obj
+	rm -rf krel*
+endif

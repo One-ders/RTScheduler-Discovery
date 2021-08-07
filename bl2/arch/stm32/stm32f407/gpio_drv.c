@@ -361,7 +361,7 @@ static int set_flags(struct pin_data *pdp, unsigned int flags, unsigned int optp
 		if ((exti2pd[pin]) && (exti2pd[pin]!=pdp)) {
 			sys_printf("interrupt line cannot not be assigned, in use\n");
 			return -1;
-		}	
+		}
 
 		exti2pd[pin]=pdp;
 
@@ -438,7 +438,7 @@ static int gpio_control(struct device_handle *dh, int cmd, void *arg1, int arg2)
 			if (arg2!=4) return -1;
 			*((unsigned int *)arg1)=read_pin(pdp);
 			return 0;
-			break;	
+			break;
 		}
 		case GPIO_SET_FLAGS: {
 			unsigned int flags;
@@ -458,7 +458,7 @@ static int gpio_control(struct device_handle *dh, int cmd, void *arg1, int arg2)
 			if (arg2!=4) return -1;
 			*((unsigned int *)arg1)=sense_pin(pdp);
 			return 0;
-			break;	
+			break;
 		}
 		case GPIO_SET_PIN: {
 			if (arg2!=4) return -1;
@@ -490,6 +490,21 @@ static int gpio_control(struct device_handle *dh, int cmd, void *arg1, int arg2)
 			break;
 		}
 		case GPIO_BUS_READ_BITS: {
+			unsigned int *bits=(unsigned int *)arg1;
+			unsigned int nrofpins;
+			int i;
+			if (!(pdp->pin_flags&PIN_FLAGS_BUS)) return -1;
+			*bits=0;
+			nrofpins=(pdp->pin_flags>>16)&0xff;
+			for(i=0;i<nrofpins;i++) {
+				int bus=pdp->pin_array[i]>>4;
+				int pin=pdp->pin_array[i]&0xf;
+				if (GPIO[bus]->odr&(1<<pin)) {
+					(*bits)|=(1<<i);
+				} else {
+					(*bits)&=~(1<<i);
+				}
+			}
 			break;
 		}
 		case GPIO_BUS_SET_BITS: {

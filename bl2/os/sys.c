@@ -1,4 +1,4 @@
-/* $Nosix/leanaux: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $rts: , v1.1 2014/04/07 21:44:00 anders Exp $ */
 
 /*
  * Copyright (c) 2014, Anders Franzen.
@@ -1332,7 +1332,7 @@ void start_up(void) {
         init_io();
 
         /* start the executive */
-        sys_printf("Leanaux git ver %s, starting tasks\n",ver);
+        sys_printf("RTS git ver %s, starting tasks\n",ver);
         start_sys();
 }
 

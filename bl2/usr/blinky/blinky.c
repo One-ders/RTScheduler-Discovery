@@ -17,7 +17,7 @@ static struct cmd cmds[] = {
 };
 
 static struct cmd_node cmn = {
-	"bbb",
+	"blink_pkg",
 	cmds,
 };
 
@@ -82,23 +82,44 @@ void blink_loop(struct blink_data *bd) {
 
 
 int blinky(int argc, char **argv, struct Env *env) {
+	static int bstate=0;
 	struct blink_data green={LED_GREEN,1000};
 	struct blink_data amber={LED_AMBER,500};
 	struct blink_data red={LED_RED,750};
 	struct blink_data blue={LED_BLUE,100};
 
-        printf("In starting blink tasks\n");
+        fprintf(env->io_fd, "In starting blink tasks\n");
 
 //        io_open("test_driver");
 
 //        thread_create(sys_mon,"usb_serial0",0,2,"sys_mon_u");
-	if (argc!=2) return -1;
+	if (argc!=2) {
+		 fprintf(env->io_fd, "need an argument on or off\n");
+		 return -1;
+	}
+
 	if (strcmp(argv[1],"on")==0) {
+		if (bstate==1) {
+			fprintf(env->io_fd, "need an argument on or off\n");
+			return -1;
+		}
+		bstate=1;
 		thread_create(blink,&green,sizeof(green),1,"green");
 		thread_create(blink,&amber,sizeof(amber),1,"amber");
 //	thread_create(blink_loop,&red,sizeof(red),256,"red_looping");
 		thread_create(blink, &red,sizeof(red),1, "red");
 		thread_create(blink, &blue,sizeof(blue),1,"blue");
+	} else if (strcmp(argv[1],"off")==0) {
+		if (bstate==0) {
+			fprintf(env->io_fd, "blinky is not running\n");
+			return -1;
+		}
+		fprintf(env->io_fd, "sorry, thread destruct NOT implemented\n");
 	}
+	return 0;
+}
+
+int init_pkg(void) {
+	init_blinky();
 	return 0;
 }

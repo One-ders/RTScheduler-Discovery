@@ -1,7 +1,7 @@
-/* $CecA1GW: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $OBD1: , v1.1 2014/04/07 21:44:00 anders Exp $ */
 
 /*
- * Copyright (c) 2014, Anders Franzen.
+ * Copyright (c) 2021, Anders Franzen.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,11 +28,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @(#)cec_drv.h
+ * @(#)obd160_drv.h
  */
-#define CEC_DRV	"cec_drv"
-
-#define CEC_SET_ACK_MSK	0x1001
-#define CEC_GET_ACK_MSK	0x1002
-#define CEC_SET_PROMISC	0x1003
-#define CEC_GET_PROMISC	0x1004
+#define OBD_DRV0	"obd160_drv0"

@@ -1,4 +1,4 @@
-/* $Nosix/Leanaux: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $realOs: , v1.1 2014/04/07 21:44:00 anders Exp $ */
 
 /*
  * Copyright (c) 2014, Anders Franzen.
@@ -38,7 +38,7 @@
 #include <procps.h>
 #include <devls.h>
 
-#include <bdm_itf.h>
+#include <syslog.h>
 
 struct dents {
 	char name[32];
@@ -323,33 +323,21 @@ static int reboot_fnc(int argc, char **argv, struct Env *env) {
 	return 0;
 }
 
-static int bdm_fnc(int argc, char **argv, struct Env *env) {
-	int fd=io_open("bdm_itf");
+static int dump_log_fnc(int argc, char **argv, struct Env *env) {
+	int fd=io_open("syslog");
 	int rc=0;
 	int ok=0;
 
 	if (fd<0) {
-		fprintf(env->io_fd,"could not open dev bdm_itf\n");
+		fprintf(env->io_fd,"could not open dev syslog\n");
 		return -1;
 	}
 
-	if (argc>1) {
-		if (strcmp(argv[1],"sync")==0) {
-			ok=1;
-			rc=io_control(fd,BDM_ITF_SYNC,0,0);
-		} else if (strcmp(argv[1], "ct")==0) {
-			ok=1;
-			rc=io_control(fd,BDM_ITF_CLOCKTEST,0,0);
-		} else if (strcmp(argv[1], "ct2")==0) {
-			ok=1;
-			rc=io_control(fd,BDM_ITF_CLOCKTEST2,0,0);
-		}
-
-	}
+	ok=io_control(fd,DUMP_BUF,0,0);
 
 	io_close(fd);
 
-	if (!ok) {
+	if (ok<0) {
 		fprintf(env->io_fd,"bad argument %s\n", argv[1]);
 		return -1;
 	}
@@ -375,7 +363,7 @@ static struct cmd cmd_root[] = {
 		{"setprio",setprio_fnc},
 		{"reboot",reboot_fnc},
 		{"kmem",kmem_fnc},
-		{"bdm", bdm_fnc},
+		{"dlog",dump_log_fnc},
 		{0,0}
 };
 
@@ -383,12 +371,6 @@ static struct cmd_node my_cmd_node = {
 	"",
 	cmd_root,
 };
-
-void init_blinky(void);
-
-void init_cec_a1();
-
-char *barg[] = {"blinky", "on"};
 
 void main(void *dum) {
 	char buf[256];
@@ -406,12 +388,9 @@ void main(void *dum) {
 //		init_blinky();
 #ifdef TEST_USB_SERIAL
 		thread_create(main,"usb_serial0",12,1,"sys_mon:usb");
-#else
-//		init_cec_a1();
 #endif
+		init_pkg();
 	}
-
-//	blinky(2, barg, &env);
 
 	while(1) {
 		int rc;
