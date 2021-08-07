@@ -183,5 +183,6 @@ clean:
 	rm -rf $(OBJECTS) myCore
 	rm -rf tmp
 	rm -rf obj
-	rm -rf krel*
+#	rm -rf krel*
+	rm  ../../incl/io.h
 endif
