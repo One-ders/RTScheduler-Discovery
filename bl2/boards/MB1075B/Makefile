@@ -8,8 +8,10 @@ DTARGETS=$(DRIVERS:.o=)
 DOBJS=$(patsubst %, $(OBJ)/drv_obj/%, $(DRIVERS))
 
 ifneq ($(KREL),)
-DTARGETS+=usr_drivers
-DOBJS+=$(LOBJ)/drv_obj/usr_drivers.o
+ifneq ($(APPLICATION_DRIVERS),)
+DTARGETS+=$(APPLICATION_DRIVERS)
+DOBJS+=$(LOBJ)/drv_obj/$(APPLICATION_DRIVERS).o
+endif
 endif
 
 BOARD=MB1075B
@@ -27,18 +29,14 @@ BDIR:=$(KREL)
 endif
 GCC_BASE:=$(shell dirname `which arm-none-eabi-gcc`)/..
 
-
 export AS:=arm-none-eabi-as
 export CC:=arm-none-eabi-gcc
 export LD:=arm-none-eabi-ld
 export OBJCOPY:=arm-none-eabi-objcopy
 
-#CFLAGS=-I. -I$(TOP)/incl -I$(TOP)/boards/$(BOARD) -I$(TOP)/arch/stm32 -I$(TOP)/arch/stm32/incl -g -O2 -DDEBUG -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
-
 CFLAGS=-I. -I$(BDIR)/incl -I$(BDIR) -I$(BDIR)/incl/stm32 -I$(BDIR)/incl/stm32/incl -g -O2 -DDEBUG -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
-
-CFLAGS_USR:=-I$(TOP)/usr/incl -I$(TOP)/boards/$(BOARD) -I$(GCC_BASE)/lib/gcc/arm-none-eabi/4.8.3/include -g -Os -DDEBUG -fno-builtin -ffreestanding -nostdinc -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
+CFLAGS_USR:=-I$(TOP)/usr/incl -I$(BDIR) -I$(GCC_BASE)/lib/gcc/arm-none-eabi/4.8.3/include -g -Os -DDEBUG -fno-builtin -ffreestanding -nostdinc -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
 #LDFLAGS=-g -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fno-builtin
 
@@ -53,12 +51,11 @@ endif
 LDFLAGS_USR=-g -r $(OBJ)/usr/lib/usrlib.o
 
 RELFILES=obj/arch/stm32/stm32.o obj/arch/stm32/stm32f407/stm32f407.o \
-        obj/drv_obj/*.o obj/os/end_sect.o obj/os/init_sect.o obj/os/os.o \
-        obj/usr/lib/usrlib.o obj/usr/sys_cmd/sys_cmd.o Makefile \
-        stm32_flash.ld \
-        $(TOP)/usr/incl ./*.h \
-        incl/*.h incl/stm32/*.h incl/stm32/incl
-
+	obj/drv_obj/*.o obj/os/end_sect.o obj/os/init_sect.o obj/os/os.o \
+	obj/usr/lib/usrlib.o obj/usr/sys_cmd/sys_cmd.o Makefile \
+	stm32_flash.ld \
+	$(TOP)/usr/incl ./*.h \
+	incl/*.h incl/stm32/*.h incl/stm32/incl
 
 all: myCore
 
@@ -88,7 +85,6 @@ hr_timer: $(OBJ)/drv_obj/hr_timer.o
 
 ifeq ($(KREL),)
 includes: $(BDIR)/incl $(BDIR)/usr/incl
-
 
 $(BDIR)/incl: $(TOP)/incl $(BDIR)/incl/stm32
 	mkdir -p $@
