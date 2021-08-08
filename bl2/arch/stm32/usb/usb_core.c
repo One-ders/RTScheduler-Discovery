@@ -72,7 +72,7 @@ static void common_irq_enable(struct usb_otg_regs *regs) {
 static int reset_core(struct usb_otg_regs *regs) {
 	int count=20000;
 	while(!(regs->core.g_rst_ctl&G_RST_CFG_AHBIDL)) {
-                sys_udelay(10);  
+                sys_udelay(10);
 		count--;
 		if (!count) return -1;
         }
@@ -83,15 +83,15 @@ static int reset_core(struct usb_otg_regs *regs) {
 }
 
 static int write_pkt(struct usb_dev_handle *pdev,
-			unsigned int ep_num, 
-			unsigned char *buf, 
+			unsigned int ep_num,
+			unsigned char *buf,
 			size_t len) {
 
 	if (!pdev->cfg.dma_enable) {
 		unsigned int i;
 		unsigned int wcount=(len+3)>>2;
 		volatile unsigned int *fifo;
-		
+
 		fifo=pdev->regs->dfifo[ep_num];
 		for(i=0;i<wcount;i++) {
 			*fifo=((unsigned int *)buf)[i];
@@ -100,13 +100,13 @@ static int write_pkt(struct usb_dev_handle *pdev,
 	return 0;
 }
 
-static int read_pkt(struct usb_dev_handle *pdev, 
-			unsigned char *buf, 
+static int read_pkt(struct usb_dev_handle *pdev,
+			unsigned char *buf,
 			size_t len) {
 	unsigned int i;
 	unsigned int wcount=(len+3)>>2;
 	volatile unsigned int *fifo=pdev->regs->dfifo[0];
-	
+
 	for(i=0;i<wcount;i++) {
 		((unsigned int *)buf)[i]=*fifo;
 	}
@@ -164,7 +164,7 @@ int usb_core_init_core(struct usb_otg_regs *regs, struct usb_cfg *usb_cfg) {
 				G_C_CFG_VBUSBSEN|
 				G_C_CFG_VBUSASEN|
 				G_C_CFG_PWRDWN;
-		
+
 	} else {
 		regs->core.g_c_cfg=G_C_CFG_VBUSBSEN|
 				G_C_CFG_VBUSASEN|
@@ -177,8 +177,8 @@ int usb_core_init_core(struct usb_otg_regs *regs, struct usb_cfg *usb_cfg) {
 				(5<<G_AHB_CFG_HBSTLEN_SHIFT));
 	}
 
-	regs->core.g_usb_cfg|=(G_USB_CFG_HNPCAP|G_USB_CFG_SRPCAP);	
-	
+	regs->core.g_usb_cfg|=(G_USB_CFG_HNPCAP|G_USB_CFG_SRPCAP);
+
 	common_irq_enable(regs);
 	return 0;
 }
@@ -219,7 +219,7 @@ int usb_core_flush_rx_fifo(struct usb_otg_regs *regs) {
 }
 
 int usb_core_set_mode(struct usb_otg_regs *regs, unsigned int mode) {
-	
+
 	unsigned int usbcfg=regs->core.g_usb_cfg;
 	usbcfg&=~(G_USB_CFG_FHMOD|G_USB_CFG_FDMOD);
 	if (mode==HOST_MODE) {
@@ -249,15 +249,15 @@ static unsigned int get_otg_irq_stat(struct usb_otg_regs *regs) {
 }
 
 static int host_init_core(struct usb_dev_handle *pdev) {
-	int i;	
+	int i;
 	config_vbus();
-	
+
 	pdev->regs->pwrclk=0;
 	init_fs_ls_p_clksel(pdev->regs, H_CFG_FSLSPC_48);
 	reset_port();
-	
+
 	pdev->regs->host.h_cfg&=~H_CFG_FSLSS;
-	
+
 	if (pdev->regs==USB_OTG_HS_ADDR) {
 		pdev->regs->core.g_rx_fsiz=RX_FIFO_HS_SIZE; // 512
 		pdev->regs->core.g_nptxfcnf=(TXH_NP_FIFO_HS_SIZE<<G_NPTX_FCNF_D_SHIFT)| // 96
@@ -283,12 +283,12 @@ static int host_init_core(struct usb_dev_handle *pdev) {
 		pdev->regs->hc[i].hc_int=0xffffffff;
 		pdev->regs->hc[i].hc_intmsk=0;
 	}
-	
+
 	vbus_drive(pdev->regs,1);
 
 	host_enable_int(pdev);
 
-	return 0;	
+	return 0;
 }
 
 static int isEvenFrame(struct usb_otg_regs *regs) {
@@ -299,14 +299,14 @@ static void vbus_drive(struct usb_otg_regs *regs, unsigned int state) {
 	int prtpwr;
 
 	drive_vbus(state);
-	
+
 	prtpwr=read_hprt0(regs)&H_PRT_PPWR;
 	if (state && !prtpwr) {
 		regs->host.h_prt|=H_PRT_PPWR;
 	} else {
 		regs->host.h_prt&=~H_PRT_PPWR;
 	}
-	
+
 	sys_mdelay(200);
 }
 
@@ -362,7 +362,7 @@ static int reset_port(struct usb_otg_regs *regs) {
 	return 1;
 }
 
-static int host_channel_init(struct usb_dev_handle *pdev, 
+static int host_channel_init(struct usb_dev_handle *pdev,
 				unsigned int channel) {
 	unsigned int intmask=0;
 	unsigned int hcchar;
@@ -430,7 +430,7 @@ static int host_channel_start_tx(struct usb_dev_handle *pdev,
 
 	if (pdev->host.fd[channel].hc.xfer_len>0) {
 		num_packets=(pdev->host.fd[channel].hc.xfer_len /
-			pdev->host.fd[channel].hc.max_pkt_size)+1; 
+			pdev->host.fd[channel].hc.max_pkt_size)+1;
 
 		if (num_packets > max_pkt_count) {
 			num_packets=max_pkt_count;
@@ -452,7 +452,7 @@ static int host_channel_start_tx(struct usb_dev_handle *pdev,
 	}
 
 	hcchar=pdev->regs->hc[channel].hc_char;
-	
+
 	if (isEvenFrame(pdev->regs)) {
 		hcchar|=HC_CHAR_ODDFRM;
 	} else {
@@ -557,7 +557,7 @@ int usb_core_dev_core_init(struct usb_dev_handle *pdev) {
 	unsigned int i;
 	unsigned int dcfg;
 	unsigned int tx_fifo_addr;
-	
+
 	regs->pwrclk=0;
 	dcfg=regs->dev.d_cfg&~DCFG_FINTRVL_MSK;
 	regs->dev.d_cfg=dcfg|DCFG_FINTRVL_80;
@@ -575,7 +575,7 @@ int usb_core_dev_core_init(struct usb_dev_handle *pdev) {
 			(RX_FIFO_FS_SIZE<<G_NPTX_FCNF_A_SHIFT);
 
 			tx_fifo_addr=RX_FIFO_FS_SIZE+TX0_FIFO_FS_SIZE;
-	
+
 		for(i=0;i<3;i++) {
 			unsigned int txfifo_data=
 				(tx_fifo_size[i]<<PTX_FCNF_D_SHIFT)|
@@ -591,7 +591,7 @@ int usb_core_dev_core_init(struct usb_dev_handle *pdev) {
 					TX4_FIFO_HS_SIZE,
 					TX5_FIFO_HS_SIZE};
 		dev_speed_init(regs, DCFG_DEV_SPEED_FULL_IPHY);
-	
+
 		regs->core.g_rx_fsiz=RX_FIFO_HS_SIZE;
 
 		regs->core.g_nptxfcnf=
@@ -599,7 +599,7 @@ int usb_core_dev_core_init(struct usb_dev_handle *pdev) {
 			(RX_FIFO_HS_SIZE<<G_NPTX_FCNF_A_SHIFT);
 
 		tx_fifo_addr=RX_FIFO_HS_SIZE+TX0_FIFO_HS_SIZE;
-	
+
 		for(i=0;i<5;i++) {
 			unsigned int txfifo_data=
 				(tx_fifo_size[i]<<PTX_FCNF_D_SHIFT)|
@@ -660,7 +660,7 @@ int usb_core_dev_core_init(struct usb_dev_handle *pdev) {
 
 static int dev_enable_int(struct usb_dev_handle *pdev) {
 	struct usb_otg_regs *regs=pdev->regs;
-	struct usb_cfg	*cfg=&pdev->cfg;	
+	struct usb_cfg	*cfg=&pdev->cfg;
 	unsigned int intmsk=0;
 
 	regs->core.g_int_msk=0;
@@ -687,7 +687,7 @@ static unsigned int dev_get_speed(struct usb_otg_regs *regs) {
 	unsigned int speed=USB_SPEED_UNKNOWN;
 
 	enumspd=(regs->dev.d_sts&DSTS_ENUMSPD_MSK)>>DSTS_ENUMSPD_SHIFT;
-	
+
 	switch(enumspd) {
 		case DSTS_ENUMSPD_HI:
 			speed=USB_SPEED_HIGH;
@@ -705,10 +705,10 @@ static int dev_EP0_activate(struct usb_otg_regs *regs) {
 
 #if 0
 	enumspd=(usb_regs->dev.d_sts&DSTS_ENUMSPD_MSK)>>DSTS_ENUMSPD_SHIFT;
-	
+
 	switch(enumspd) {
 		case DSTS_ENUMSPD_HI:
-	
+
 #endif
 
 	diepctl=regs->dev.d_ep_in[0].ctl;
@@ -775,7 +775,7 @@ int usb_core_dev_EP_start_xfer(struct usb_dev_handle *pdev, struct usb_dev_ep *e
 	if (ep->is_in) {
 		depctl=pdev->regs->dev.d_ep_in[ep->num].ctl;
 		deptsiz=pdev->regs->dev.d_ep_in[ep->num].tsiz;
-		
+
 		deptsiz&=~(EP_TSIZ_PKTCNT_MSK|EP_TSIZ_XFRSIZ_MSK);
 		if (!ep->xfer_len) {
 			deptsiz|=(1<<EP_TSIZ_PKTCNT_SHIFT);
@@ -810,7 +810,7 @@ int usb_core_dev_EP_start_xfer(struct usb_dev_handle *pdev, struct usb_dev_ep *e
 		}
 
 		depctl|=(EP_CTL_CNAK|EP_CTL_ENA);
-		
+
 		pdev->regs->dev.d_ep_in[ep->num].ctl=depctl;
 
 		if (ep->type==EP_TYPE_ISO) {
@@ -819,7 +819,7 @@ int usb_core_dev_EP_start_xfer(struct usb_dev_handle *pdev, struct usb_dev_ep *e
 	} else {  /* out end point */
 		depctl=pdev->regs->dev.d_ep_out[ep->num].ctl;
 		deptsiz=pdev->regs->dev.d_ep_out[ep->num].tsiz;
-		
+
 		deptsiz&=~(EP_TSIZ_PKTCNT_MSK|EP_TSIZ_XFRSIZ_MSK);
 		if (!ep->xfer_len) {
 			deptsiz|=((ep->maxpacket<<EP_TSIZ_XFRSIZ_SHIFT)|
@@ -858,7 +858,7 @@ int usb_core_dev_EP0_start_xfer(struct usb_dev_handle *pdev, struct usb_dev_ep *
 		struct d_ep_in *in_ep_regs=&pdev->regs->dev.d_ep_in[0];
 		depctl=in_ep_regs->ctl;
 		deptsiz=in_ep_regs->tsiz;
-		
+
 		deptsiz&=~(EP_TSIZ_PKTCNT_MSK|EP_TSIZ_XFRSIZ_MSK);
 		if (!ep->xfer_len) {
 			deptsiz|=(1<<EP_TSIZ_PKTCNT_SHIFT);
@@ -870,14 +870,14 @@ int usb_core_dev_EP0_start_xfer(struct usb_dev_handle *pdev, struct usb_dev_ep *
 				(1<<EP_TSIZ_PKTCNT_SHIFT));
 		}
 		in_ep_regs->tsiz=deptsiz;
-		
+
 		if (pdev->cfg.dma_enable) {
 			pdev->regs->dev.d_ep_in[ep->num].dma=ep->dma_addr;
 //			in_ep_regs->dma=ep->dma_addr;
 		}
 
 		depctl|=(EP_CTL_CNAK|EP_CTL_ENA);
-		
+
 		in_ep_regs->ctl=depctl;
 
 		if (!pdev->cfg.dma_enable) {
@@ -889,7 +889,7 @@ int usb_core_dev_EP0_start_xfer(struct usb_dev_handle *pdev, struct usb_dev_ep *
 		struct d_ep_out *ep_out_regs=&pdev->regs->dev.d_ep_out[ep->num];
 		depctl=ep_out_regs->ctl;
 		deptsiz=ep_out_regs->tsiz;
-		
+
 		deptsiz&=~(EP_TSIZ_PKTCNT_MSK|EP_TSIZ_XFRSIZ_MSK);
 		if (ep->xfer_len) {
 			ep->xfer_len=ep->maxpacket;
@@ -910,11 +910,11 @@ int usb_core_dev_EP0_start_xfer(struct usb_dev_handle *pdev, struct usb_dev_ep *
 }
 
 int usb_core_dev_EP_set_stall(struct usb_otg_regs *regs,struct usb_dev_ep *ep) {
-	
+
 	if (ep->is_in) {
 		struct d_ep_in *ep_in_regs=&regs->dev.d_ep_in[ep->num];
 		unsigned int depctl=ep_in_regs->ctl;
-	
+
 		if (depctl&EP_CTL_ENA) {
 			depctl|=EP_CTL_DIS;
 		}
@@ -965,7 +965,7 @@ static unsigned int dev_read_out_ep_irq(struct usb_otg_regs *regs, unsigned int 
 	irqs=regs->dev.d_ep_out[channel].ints;
 	irqs&=regs->dev.d_doep_msk;
 	return irqs;
-}	
+}
 
 static unsigned int dev_read_all_in_ep_irq(struct usb_otg_regs *regs) {
 	unsigned int irqs;
@@ -986,7 +986,7 @@ void dev_EP0_out_start(struct usb_dev_handle *pdev) {
 				(1<<EP_TSIZ_PKTCNT_SHIFT)|
 				((8*3)<<EP_TSIZ_XFRSIZ_SHIFT);
 	pdev->regs->dev.d_ep_out[0].tsiz=doeptsiz;
-	
+
 	if (pdev->cfg.dma_enable) {
 		unsigned int doepctl;
 		pdev->regs->dev.d_ep_out[0].dma=(unsigned int)
@@ -1027,7 +1027,7 @@ static void dev_ungate_clock(struct usb_dev_handle *pdev) {
 
 static void dev_stop(struct usb_dev_handle *pdev) {
 	unsigned int i;
-	pdev->dev.dev_status=1;	
+	pdev->dev.dev_status=1;
 
 	for(i=0;i<pdev->cfg.dev_endpoints;i++) {
 		pdev->regs->dev.d_ep_in[i].ints=0xff;
@@ -1045,7 +1045,7 @@ static void dev_stop(struct usb_dev_handle *pdev) {
 
 unsigned int usb_core_dev_get_ep_status(struct usb_otg_regs *regs, struct usb_dev_ep *ep) {
 	unsigned int status=0;
-	
+
 	if (ep->is_in) {
 		unsigned int depctl=regs->dev.d_ep_in[ep->num].ctl;
 		if (depctl&EP_CTL_STALL) {
@@ -1138,6 +1138,7 @@ static unsigned int dev_write_empty_tx_fifo(struct usb_dev_handle *pdev,
 	struct usb_dev_ep *ep;
 	unsigned int len,wlen;
 	unsigned int space_avail;
+	int did=0;
 
 	ep=&pdev->dev.in_ep[epnum];
 	len=ep->xfer_len-ep->xfer_count;
@@ -1160,6 +1161,7 @@ static unsigned int dev_write_empty_tx_fifo(struct usb_dev_handle *pdev,
 
 		wlen=(len+3)/4;
 
+		did=1;
 		write_pkt(pdev, epnum,ep->xfer_buf,len);
 		ep->xfer_buf+=len;
 		ep->xfer_count+=len;
@@ -1168,8 +1170,12 @@ static unsigned int dev_write_empty_tx_fifo(struct usb_dev_handle *pdev,
 //			/* mask out ep_empty irq, we dont need it for now*/
 //			pdev->regs->dev.d_iep_empty_msk&=~(1<<ep->num);
 //		}
-		
+
 		space_avail=pdev->regs->dev.d_ep_in[epnum].txf_sts&EP_IN_TXF_STS_INEPTFSAV_MSK;
+	}
+
+	if (!did) {
+		pdev->regs->dev.d_iep_empty_msk&=~(1<<ep->num);
 	}
 	return 1;
 }
@@ -1204,10 +1210,10 @@ unsigned int usb_device_EP1_out_handler() {
 unsigned int usb_device_EP1_in_handler() {
 	unsigned int d_diepint;
 	unsigned int fifoemptymsk, msk, empty;
-	
+
 	msk=usb_regs->dev.d_iep_each_msk1;
 	empty=usb_regs->dev.d_iep_empty_msk;
-	msk|=(((empty>>1)&1)<<7); // use reserved bit to indicate empty 
+	msk|=(((empty>>1)&1)<<7); // use reserved bit to indicate empty
 	d_diepint=usb_regs->dev.d_ep_in[1].ints & msk;
 
 	if (d_diepint&EP_IINT_XFER_DONE) {
@@ -1266,7 +1272,7 @@ static unsigned int device_handle_usb_suspend_irq(struct usb_dev_handle *pdev) {
 	usbd_suspend(pdev);
 
 	dev_stat=pdev->regs->dev.d_sts;
-	
+
 	pdev->regs->core.g_int_sts=G_INT_STS_USBSUSP;
 
 	if (pdev->cfg.low_power&&(dev_stat&DSTS_SUSP)&&
@@ -1339,7 +1345,7 @@ static unsigned int device_handle_outep_irq(struct usb_dev_handle *pdev) {
 	unsigned int epnum=0;
 
 	ep_intr=dev_read_all_out_ep_irq(pdev->regs);
-	
+
 	while(ep_intr) {
 		if (ep_intr&0x1) {
 			unsigned int doepint=dev_read_out_ep_irq(pdev->regs,epnum);
@@ -1349,7 +1355,7 @@ static unsigned int device_handle_outep_irq(struct usb_dev_handle *pdev) {
 				if (pdev->cfg.dma_enable) {
 					unsigned int deptsiz;
 					deptsiz=pdev->regs->dev.d_ep_out[epnum].tsiz;
-					pdev->dev.out_ep[epnum].xfer_count = 
+					pdev->dev.out_ep[epnum].xfer_count =
 						pdev->dev.out_ep[epnum].maxpacket -
 						(deptsiz&EP_TSIZ_XFRSIZ_MSK);
 				}
@@ -1360,7 +1366,7 @@ static unsigned int device_handle_outep_irq(struct usb_dev_handle *pdev) {
 					}
 				}
 			}
-			
+
 			if (doepint&EP_OINT_DISABLED) {
 				pdev->regs->dev.d_ep_out[epnum].ints=EP_OINT_DISABLED;
 //				sys_printf("out ep irq ep %d, DISABLED\n",epnum);
@@ -1536,7 +1542,6 @@ unsigned int handle_device_irq(struct usb_dev_handle *pdev) {
 //			gint_status&=~G_INT_STS_RXFLVL;
 //			rc|=device_handle_rxfifo_irq(pdev);
 //		}
-
 
 		if (gint_status&G_INT_STS_OEPINT) {
 			gint_status&=~G_INT_STS_OEPINT;
