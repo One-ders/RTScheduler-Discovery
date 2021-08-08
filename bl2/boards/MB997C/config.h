@@ -41,11 +41,10 @@
 /* Sony A1 */
 // previous use of PB0 changed, because of burned gpio pin
 #define A1_PIN          GPIO_PIN(PC,5)
-#endif
 
+// OBD1 GM ALDL
 #define OBD160_PIN          GPIO_PIN(PC,5)
 
-#if 0
 /* Timer 1 Ch1 & Ch 2, AF1 */
 #define TIM1_CH1_PIN	GPIO_PIN(PE,9)
 #define TIM1_CH2_PIN	GPIO_PIN(PE,11)

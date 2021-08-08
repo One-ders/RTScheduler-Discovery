@@ -83,10 +83,17 @@ void blink_loop(struct blink_data *bd) {
 
 int blinky(int argc, char **argv, struct Env *env) {
 	static int bstate=0;
+#if defined(MB997C)
 	struct blink_data green={LED_GREEN,1000};
 	struct blink_data amber={LED_AMBER,500};
 	struct blink_data red={LED_RED,750};
 	struct blink_data blue={LED_BLUE,100};
+#elif defined(MB1075B)
+	struct blink_data green={LED_GREEN,1000};
+	struct blink_data red={LED_RED,750};
+#else
+	return -1;
+#endif
 
         fprintf(env->io_fd, "In starting blink tasks\n");
 
@@ -104,11 +111,16 @@ int blinky(int argc, char **argv, struct Env *env) {
 			return -1;
 		}
 		bstate=1;
+#if defined(MB997C)
 		thread_create(blink,&green,sizeof(green),1,"green");
 		thread_create(blink,&amber,sizeof(amber),1,"amber");
-//	thread_create(blink_loop,&red,sizeof(red),256,"red_looping");
 		thread_create(blink, &red,sizeof(red),1, "red");
 		thread_create(blink, &blue,sizeof(blue),1,"blue");
+#elif defined(MB1075B)
+		thread_create(blink,&green,sizeof(green),1,"green");
+		thread_create(blink, &red,sizeof(red),1, "red");
+#endif
+//	thread_create(blink_loop,&red,sizeof(red),256,"red_looping");
 	} else if (strcmp(argv[1],"off")==0) {
 		if (bstate==0) {
 			fprintf(env->io_fd, "blinky is not running\n");

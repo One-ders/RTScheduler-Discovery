@@ -8,20 +8,22 @@ DTARGETS=$(DRIVERS:.o=)
 DOBJS=$(patsubst %, $(OBJ)/drv_obj/%, $(DRIVERS))
 
 ifneq ($(KREL),)
-				DTARGETS=usr_drivers
-				DOBJS+=$(LOBJ)/drv_obj/usr_drivers.o
+DTARGETS+=usr_drivers
+DOBJS+=$(LOBJ)/drv_obj/usr_drivers.o
 endif
 
 BOARD=MB997C
 ifeq ($(KREL),)
 TOP:=$(shell pwd)/../..
 OBJ?=$(TOP)/boards/$(BOARD)/obj
+BDIR:=$(TOP)/boards/$(BOARD)
 
 GIT_VERSION:=$(shell git describe --abbrev=4 --dirty --always --tags)
 VERSION:=$(shell echo "$(BOARD)-$(GIT_VERSION)")
 LOBJ=$(OBJ)
 else
 TOP:=$(KREL)
+BDIR:=$(KREL)
 endif
 GCC_BASE:=$(shell dirname `which arm-none-eabi-gcc`)/..
 
@@ -30,7 +32,8 @@ export CC:=arm-none-eabi-gcc
 export LD:=arm-none-eabi-ld
 export OBJCOPY:=arm-none-eabi-objcopy
 
-CFLAGS=-I. -I$(TOP)/incl -I$(TOP)/boards/$(BOARD) -I$(TOP)/arch/stm32 -I$(TOP)/arch/stm32/incl -g -O2 -DDEBUG -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
+#CFLAGS=-I. -I$(TOP)/incl -I$(TOP)/boards/$(BOARD) -I$(TOP)/arch/stm32 -I$(TOP)/arch/stm32/incl -g -O2 -DDEBUG -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
+CFLAGS=-I. -I$(BDIR)/incl -I$(BDIR) -I$(BDIR)/incl/stm32 -I$(BDIR)/incl/stm32/incl -g -O2 -DDEBUG -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
 CFLAGS_USR:=-I$(TOP)/usr/incl -I$(TOP)/boards/$(BOARD) -I$(GCC_BASE)/lib/gcc/arm-none-eabi/4.8.3/include -g -Os -DDEBUG -fno-builtin -ffreestanding -nostdinc -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
@@ -38,8 +41,10 @@ CFLAGS_USR:=-I$(TOP)/usr/incl -I$(TOP)/boards/$(BOARD) -I$(GCC_BASE)/lib/gcc/arm
 
 ifeq ($(KREL),)
 LDFLAGS=-g -T./stm32_flash.ld -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -fno-builtin -nostartfiles
+BASEBUILD_INCL:=includes
 else
 LDFLAGS=-g -T$(KREL)/stm32_flash.ld -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -fno-builtin -nostartfiles
+BASEBUILD_INCL=
 endif
 
 LDFLAGS_USR=-g -r $(OBJ)/usr/lib/usrlib.o
@@ -48,15 +53,15 @@ RELFILES=obj/arch/stm32/stm32.o obj/arch/stm32/stm32f407/stm32f407.o \
 	obj/drv_obj/*.o obj/os/end_sect.o obj/os/init_sect.o obj/os/os.o \
 	obj/usr/lib/usrlib.o obj/usr/sys_cmd/sys_cmd.o Makefile \
 	stm32_flash.ld \
-	$(TOP)/usr/incl $(TOP)/boards/$(BOARD)/*.h \
-	$(TOP)/incl $(TOP)/arch/stm32/*.h $(TOP)/arch/stm32/incl
+	$(TOP)/usr/incl ./*.h \
+	incl/*.h incl/stm32/*.h incl/stm32/incl
 
 all: myCore
 
 rel: myCore
 	tar -cvzf krel-$(VERSION).tgz $(RELFILES)
 
-myCore: os version stm32f407 stm32 $(DTARGETS) usr.bin.o
+myCore: $(BASEBUILD_INCL)  os version stm32f407 stm32 $(DTARGETS) usr.bin.o
 	$(CC) $(LDFLAGS) -o $@ $(OBJ)/os/init_sect.o \
 				$(OBJ)/version.c \
 				$(OBJ)/os/os.o \
@@ -78,6 +83,20 @@ usb_core_drv: $(OBJ)/drv_obj/usb_core_drv.o
 hr_timer: $(OBJ)/drv_obj/hr_timer.o
 
 ifeq ($(KREL),)
+includes: $(BDIR)/incl $(BDIR)/usr/incl
+
+$(BDIR)/incl: $(TOP)/incl $(BDIR)/incl/stm32
+	mkdir -p $@
+	lndir $< $@
+
+$(BDIR)/incl/stm32: $(TOP)/arch/stm32
+	mkdir -p $@
+	lndir $< $@
+
+$(BDIR)/usr/incl: $(TOP)/usr/incl
+	mkdir -p $@
+	lndir $< $@
+
 usr.bin.o: $(OBJ)/usr/sys_cmd/sys_cmd.o $(OBJ)/usr/blinky/blinky.o
 	$(LD) -o $(OBJ)/usr/usr.bin.o $(LDFLAGS_USR) $^
 	$(OBJCOPY) --prefix-symbols=__usr_ $(OBJ)/usr/usr.bin.o
@@ -135,6 +154,7 @@ $(OBJ)/os/os.o: $(OBJ)/os
 $(OBJ)/os: $(TOP)/os
 	mkdir -p $@
 	lndir $< $@
+	cp $(TOP)/os/*.h $(BDIR)/incl/.
 
 $(OBJ)/drv_obj/usb_serial_drv.o: $(OBJ)/drivers/usb_serial
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
@@ -183,6 +203,9 @@ clean:
 	rm -rf $(OBJECTS) myCore
 	rm -rf tmp
 	rm -rf obj
-#	rm -rf krel*
-	rm  ../../incl/io.h
+	rm -rf incl
+	rm -rf usr
+	rm -rf krel*
+	rm  -f ../../incl/io.h
+	rm  -f ../../incl/sys.h
 endif

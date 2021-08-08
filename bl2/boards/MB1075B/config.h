@@ -150,14 +150,14 @@
 #if 0
 #define USB_PSO		GPIO_PIN(PC,4)
 #define USB_QC		GPIO_PIN(PC,5)
-#endif
 
 /* Cec */
 #if 1
 #define CEC_PIN		GPIO_PIN(PC,3);
-#else 
+#else
 #define CEC_PIN		GPIO_PIN(PB,7);
 #endif
 
 /* Sony A1 */
 #define A1_PIN		GPIO_PIN(PB,4);
+#endif
