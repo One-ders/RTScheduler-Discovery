@@ -133,5 +133,6 @@ int blinky(int argc, char **argv, struct Env *env) {
 
 int init_pkg(void) {
 	init_blinky();
+        init_pin_test();
 	return 0;
 }
