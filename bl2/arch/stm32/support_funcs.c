@@ -23,7 +23,7 @@ void setup_return_stack(struct task *t, void *stackp_v,
 
 	*(--stackp)=0x01000000;                  // xPSR
 	*(--stackp)=(unsigned long int)fnc;    // r15
-	*(--stackp)=(unsigned long int)ret_fnc;//svc_kill_self;     // r14
+	*(--stackp)=(unsigned long int)ret_fnc;//svc_destroy_self;     // r14
 	*(--stackp)=0;     // r12
 	*(--stackp)=0;     // r3
 	*(--stackp)=0;     // r2

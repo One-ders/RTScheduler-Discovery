@@ -1,4 +1,4 @@
-/* $Nosix/Leanaux: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $RTS: , v1.1 2014/04/07 21:44:00 anders Exp $ */
 
 /*
  * Copyright (c) 2014, Anders Franzen.
@@ -46,8 +46,8 @@
 #define SVC_IO_SELECT   SVC_IO_CLOSE+1
 #define SVC_IO_MMAP     SVC_IO_SELECT+1
 #define SVC_IO_MUNMAP   SVC_IO_MMAP+1
-#define SVC_KILL_SELF   SVC_IO_MUNMAP+1
-#define SVC_BLOCK_TASK  SVC_KILL_SELF+1
+#define SVC_DESTROY_SELF   SVC_IO_MUNMAP+1
+#define SVC_BLOCK_TASK  SVC_DESTROY_SELF+1
 #define SVC_UNBLOCK_TASK SVC_BLOCK_TASK+1
 #define SVC_SETPRIO_TASK SVC_UNBLOCK_TASK+1
 #define SVC_SETDEBUG_LEVEL SVC_SETPRIO_TASK+1
@@ -81,7 +81,7 @@ struct task_create_args {
  * Inline assembler helper directive: call SVC with the given immediate
  */
 #define svc(code) asm volatile ("svc %[immediate]\n\t"::[immediate] "I" (code))
- 
+
 /*
  * Use a normal C function, the compiler will make sure that this is going
  * to be called using the standard C ABI which ends in a correct stack
@@ -112,15 +112,15 @@ __attribute__ ((noinline)) int svc_create_task(struct task_create_args *ta) {
 }
 
 
-__attribute__ ((noinline)) int svc_kill_self() {
-	svc(SVC_KILL_SELF);
+__attribute__ ((noinline)) int svc_destroy_self() {
+	svc(SVC_DESTROY_SELF);
 	return 0;
 }
 
 
 __attribute__ ((noinline)) int svc_sleep(unsigned int ms) {
 	register int rc asm("r0");
-	svc(SVC_SLEEP); 
+	svc(SVC_SLEEP);
 	return rc;
 }
 

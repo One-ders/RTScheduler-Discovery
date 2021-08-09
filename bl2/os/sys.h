@@ -167,7 +167,7 @@ void init_sys_arch(void);
 void setup_return_stack(struct task *t, void *stackp,
 					unsigned long int fnc,
 					unsigned long int ret_fnc,
-					void *arg0, 
+					void *arg0,
 					void *arg1);
 int unmap_stack_memory(unsigned long int addr);
 int map_stack_page(unsigned long int addr,unsigned int size);
@@ -279,8 +279,8 @@ struct dent {
 #define SVC_IO_SELECT   SVC_IO_CLOSE+1
 #define SVC_IO_MMAP     SVC_IO_SELECT+1
 #define SVC_IO_MUNMAP   SVC_IO_MMAP+1
-#define SVC_KILL_SELF   SVC_IO_MUNMAP+1
-#define SVC_BLOCK_TASK  SVC_KILL_SELF+1
+#define SVC_DESTROY_SELF   SVC_IO_MUNMAP+1
+#define SVC_BLOCK_TASK  SVC_DESTROY_SELF+1
 #define SVC_UNBLOCK_TASK SVC_BLOCK_TASK+1
 #define SVC_SETPRIO_TASK SVC_UNBLOCK_TASK+1
 #define SVC_SETDEBUG_LEVEL SVC_SETPRIO_TASK+1

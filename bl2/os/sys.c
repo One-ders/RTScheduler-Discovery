@@ -38,11 +38,13 @@
 
 unsigned int sys_irqs;
 
-struct task * volatile ready[5];
-struct task * volatile ready_last[5];
+struct task *volatile ready[5];
+struct task *volatile ready_last[5];
+
+struct task *task_cemetery;
 
 struct task *troot =&main_task;
-struct task * volatile current = &main_task;
+struct task *volatile current = &main_task;
 
 
 struct task *t_array[256];
@@ -142,6 +144,19 @@ void SysTick_Handler(void) {
 		return;
 	}
 	SET_TMARK(current);
+
+	if (task_cemetery) {
+		struct task *t;
+		for(t=task_cemetery;t;t=t->next) {
+			sys_printf("found task: %s in cemetry\n", t->name);
+			if (t->sp!=0) {
+				task_cemetery=t->next;
+				put_page(t);
+			} else {
+				sys_printf("task still not swiched out\n");
+			}
+		}
+	}
 	return;
 }
 
@@ -151,7 +166,7 @@ void SysTick_Handler(void) {
  * stack of the svc caller.
  */
 
-//int svc_kill_self(void);
+int __usr_svc_destroy_self(void);
 
 static struct device_handle *console_open(void *driver_instance, DRV_CBH cb, void *dum);
 static int console_close(struct device_handle *dh);
@@ -202,9 +217,11 @@ int close_drivers(void) {
 	current->fd_list=0;
 	while(fdl) {
 		struct user_fd *fdlnext=fdl->next;
-		fdl->driver->ops->close(fdl->dev_handle);
-		fdl->driver=0;
-		fdl->next=0;
+		if (fdl!=&fd_tab[0]) { // dont free up the console our list is global
+			fdl->driver->ops->close(fdl->dev_handle);
+			fdl->driver=0;
+			fdl->next=0;
+		}
 		fdl=fdlnext;
 	}
 	return 0;
@@ -271,6 +288,8 @@ out:
 	return 0;
 }
 
+static int destroy_thread(struct task *t);
+
 void *handle_syscall(unsigned long int *svc_sp) {
 	unsigned int svc_number;
 
@@ -321,7 +340,7 @@ void *handle_syscall(unsigned long int *svc_sp) {
 			}
 			t->asp=current->asp;
 			t->asp->ref++;
-			setup_return_stack(t,(void *)stackp,(unsigned long int)tca->fnc,0,uval,8);
+			setup_return_stack(t,(void *)stackp,(unsigned long int)tca->fnc,__usr_svc_destroy_self,uval,8);
 
 			t->state=TASK_STATE_READY;
 			t->name=tca->name;
@@ -348,13 +367,27 @@ void *handle_syscall(unsigned long int *svc_sp) {
 			return 0;
 			break;
 		}
-		case SVC_KILL_SELF: {
+		case SVC_DESTROY_SELF: {
+			struct task *t1=troot;
+			struct task **tprev=&troot;
+
 			if (current->state!=TASK_STATE_RUNNING) return 0;
 
-			close_drivers();
-			current->state=TASK_STATE_DEAD;
+			while(t1) {
+				struct task *tnext=t1->next2;
+				if (t1==current) {
+					destroy_thread(current);
+					*tprev=t1->next2;
+					t1->next2=0;
+					goto done;
+				}
+				t1=tnext;
+			}
+			sys_printf("error at destroy thread\n");
+			return 0;
 
-			DEBUGP(DLEV_SCHED,"kill self task: %s\n", current->name);
+done:
+			DEBUGP(DLEV_SCHED,"destroy self task: %s\n", current->name);
 			switch_on_return();
 			return 0;
 		}
@@ -556,6 +589,10 @@ again:
 			int fd=(int)get_svc_arg(svc_sp,0);
 			if (fd<0) {
 				set_svc_ret(svc_sp,-1);
+				return 0;
+			}
+			if (!fd) {
+				sys_printf("someone tried to close the console\n");
 				return 0;
 			}
 			{
@@ -1123,6 +1160,31 @@ void *sys_wakeup_from_list(struct blocker_list *bl) {
 	restore_cpu_flags(cpu_flags);
 	return rc;
 }
+
+static int destroy_thread(struct task *t) {
+	int rc;
+	unsigned long int cpu_flags=disable_interrupts();
+	if (t->blocker.wakeup_tic) {
+		sys_timer_remove(&t->blocker);
+	}
+
+#if 0
+	rc=block_task_t(t);
+	if (!rc) {
+		sys_printf("removed %s, from ready queue\n",t->name);
+	}
+#endif
+	t->state=TASK_STATE_DEAD;
+//	close_drivers(t);
+	sys_printf("removing task %s\n",t->name);
+	t->asp=0;
+
+	t->next=task_cemetery;
+	task_cemetery=t;
+	restore_cpu_flags(cpu_flags);
+	return 0;
+}
+
 
 /***********************************************************/
 /* DBG                                                     */
