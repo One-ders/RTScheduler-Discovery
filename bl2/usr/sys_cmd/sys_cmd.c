@@ -389,6 +389,7 @@ void main(void *dum) {
 #ifdef TEST_USB_SERIAL
 		thread_create(main,"usb_serial0",12,1,"sys_mon:usb");
 #endif
+		init_pin_test();
 		init_pkg();
 	}
 

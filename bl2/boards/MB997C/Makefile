@@ -98,7 +98,7 @@ $(BDIR)/usr/incl: $(TOP)/usr/incl
 	mkdir -p $@
 	lndir $< $@
 
-usr.bin.o: $(OBJ)/usr/sys_cmd/sys_cmd.o $(OBJ)/usr/blinky/blinky.o
+usr.bin.o: $(OBJ)/usr/sys_cmd/sys_cmd.o $(OBJ)/usr/blinky/blinky.o $(OBJ)/usr/pin_test/pin_test.o
 	$(LD) -o $(OBJ)/usr/usr.bin.o $(LDFLAGS_USR) $^
 	$(OBJCOPY) --prefix-symbols=__usr_ $(OBJ)/usr/usr.bin.o
 endif
@@ -128,6 +128,13 @@ $(OBJ)/usr/blinky/blinky.o: $(OBJ)/usr/lib/usrlib.o $(OBJ)/usr/blinky
 	CFLAGS="$(CFLAGS_USR)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $(OBJ)/usr/blinky
 
 $(OBJ)/usr/blinky: $(TOP)/usr/blinky
+	mkdir -p $@
+	lndir $< $@
+
+$(OBJ)/usr/pin_test/pin_test.o: $(OBJ)/usr/lib/usrlib.o $(OBJ)/usr/pin_test
+	CFLAGS="$(CFLAGS_USR)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $(OBJ)/usr/pin_test
+
+$(OBJ)/usr/pin_test: $(TOP)/usr/pin_test
 	mkdir -p $@
 	lndir $< $@
 endif

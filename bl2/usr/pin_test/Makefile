@@ -1,7 +1,7 @@
 
-USR_CMD=$(OBJ)/usr/blinky
+USR_CMD=$(OBJ)/usr/pin_test
 
-all: $(USR_CMD) $(USR_CMD)/blinky.o
+all: $(USR_CMD) $(USR_CMD)/pin_test.o
 
 $(USR_CMD):
 	mkdir $@
@@ -13,4 +13,4 @@ $(USR_CMD):
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -rf blinky *.o
+	rm -rf pin_test *.o

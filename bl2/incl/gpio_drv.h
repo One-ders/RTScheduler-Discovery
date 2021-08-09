@@ -33,7 +33,8 @@
 #define GPIO_DRV "gpio_drv"
 
 #define GPIO_BIND_PIN			0x1001
-#define GPIO_GET_BOUND_PIN		0x1002
+#define GPIO_UNBIND_PIN			0x1002
+#define GPIO_GET_BOUND_PIN		0x1003
 #define PA				0x00
 #define PB				0x10
 #define PC				0x20
@@ -46,9 +47,9 @@
 
 #define GPIO_PIN(a,b)			(a|b)
 
-#define GPIO_SET_FLAGS			0x1003
-#define GPIO_CLR_FLAGS			0x1004
-#define GPIO_GET_FLAGS			0x1005
+#define GPIO_SET_FLAGS			0x1004
+#define GPIO_CLR_FLAGS			0x1005
+#define GPIO_GET_FLAGS			0x1006
 
 #define GPIO_DIR(a,b)			((a&~GPIO_DIR_MASK)|b)
 #define GPIO_DIR_MASK			0x7
@@ -86,14 +87,15 @@
 #define GPIO_ALTFN_MASK			0xf00
 #define GPIO_ALTFN_SHIFT		8
 
-#define	GPIO_SENSE_PIN			0x1006
-#define GPIO_SET_PIN			0x1007
-#define GPIO_SINK_PIN			0x1008
-#define GPIO_RELEASE_PIN		0x1009
-#define GPIO_BUS_ASSIGN_PINS		0x1010
-#define GPIO_BUS_READ_BITS		0x1011
-#define GPIO_BUS_SET_BITS		0x1012
-#define GPIO_BUS_CLR_BITS		0x1013
+#define	GPIO_SENSE_PIN			0x1007
+#define GPIO_SET_PIN			0x1008
+#define GPIO_SINK_PIN			0x1009
+#define GPIO_RELEASE_PIN		0x1010
+#define GPIO_BUS_ASSIGN_PINS		0x1011
+#define GPIO_BUS_DEASSIGN_PINS		0x1012
+#define GPIO_BUS_READ_BITS		0x1013
+#define GPIO_BUS_SET_BITS		0x1014
+#define GPIO_BUS_CLR_BITS		0x1015
 
 struct pin_spec {
 	unsigned short int pin;
@@ -113,7 +115,7 @@ struct pin_spec {
 /* Pins connected to external functions
  *
  * CS43L22, audio dac, Speaker driver
- * 
+ *
  * 	PA4	LRCK/AIN 1.x
  * 	PB6	SCL
  * 	PB9	SDA
@@ -171,10 +173,10 @@ struct pin_spec {
  * 	PA11	2
  * 	PA12	3
  */
- 
 
 
-/* Alternate PIN map/assignements, on Discovery 
+
+/* Alternate PIN map/assignements, on Discovery
  * ETH_MII
  * 	PA0,PA1,PA2,PA3,PA7,PB0,PB5,PB8,PB10,PB11,PB12,PB13,PC1,PC2,PC3,
  * 	PC4,PC5,PE2.
@@ -228,7 +230,7 @@ struct pin_spec {
  *
  * WAKEUP
  * 	PA0
- * 	
+ *
  * OTG_HS
  * 	PA3,PA4,PA5,PB0,PB1,PB5,PB10,PB11,PB12,PB13,PB14,PB15,
  * 	PC0,PC2,PC3
@@ -292,5 +294,5 @@ struct pin_spec {
  *
  * I2C 2
  *	PB10,PB11,PB12
- *	
+ *
  */

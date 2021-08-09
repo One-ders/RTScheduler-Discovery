@@ -82,14 +82,19 @@ int strcmp(const char *s1, const char *s2) {
 
 int strncmp(const char *s1, const char *s2, size_t n) {
 	int i;
+	char first=*s1, second=*s2;
 	for(i=0;i<n;i++) {
 		if((*s1)&&(*s2)&&(*s1==*s2)){
+			first=*s1;
+			second=*s2;
 			s1++;s2++;
 		} else {
+			first=*s1;
+			second=*s2;
 			break;
 		}
 	}
-	return (*s1)-(*s2);
+	return first-second;
 }
 
 

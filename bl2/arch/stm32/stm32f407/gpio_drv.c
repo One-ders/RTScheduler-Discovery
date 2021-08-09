@@ -1,4 +1,4 @@
-/* $Nosix: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $RTS: , v1.1 2014/04/07 21:44:00 anders Exp $ */
 
 /*
  * Copyright (c) 2014, Anders Franzen.
@@ -203,7 +203,6 @@ void EXTI15_10_IRQHandler(void) {
 
 /**************** Support functions **********************/
 
-
 static int assign_pin(struct pin_data *pdp, int pin) {
 	int bus=pin>>4;
 	int bpin=pin&0xf;
@@ -211,7 +210,6 @@ static int assign_pin(struct pin_data *pdp, int pin) {
 	if (pdp->pin_flags&PIN_FLAGS_ASSIGNED) {
 		return -1;
 	}
-//	sys_printf("lookup pin %d at bus %d\n",bpin,bus);
 
 	if (pinmap[bus]&(1<<bpin)) {
 		sys_printf("pin in use %x\n", pin);
@@ -225,6 +223,26 @@ static int assign_pin(struct pin_data *pdp, int pin) {
 	if (!(pdp->pin_flags&PIN_FLAGS_BUS)) {
 		pdp->bus=bus;
 		pdp->bpin=bpin;
+	}
+	return 0;
+}
+
+static int deassign_pin(struct pin_data *pdp, int pin) {
+	int bus=pin>>4;
+	int bpin=pin&0xf;
+
+	if (!(pdp->pin_flags&PIN_FLAGS_ASSIGNED)) {
+		return 0;
+	}
+//	sys_printf("lookup pin %d at bus %d\n",bpin,bus);
+
+	if (!(pinmap[bus]&(1<<bpin))) {
+		return 0;
+	}
+
+	pinmap[bus]&=~(1<<bpin);
+	if (!pinmap[bus]) {
+		RCC->AHB1ENR&=~(1<<bus);
 	}
 	return 0;
 }
@@ -412,10 +430,19 @@ static struct device_handle *gpio_open(void *instance, DRV_CBH callback, void *u
 }
 
 static int gpio_close(struct device_handle *dh) {
-	struct pin_data *pd=(struct pin_data *)dh;
+	struct pin_data *pdp=(struct pin_data *)dh;
 	sys_printf("gpio_close\n");
-	if (pd->pin_flags) {
-		pd->pin_flags=0;
+	if (pdp->pin_flags&PIN_FLAGS_BUS) {
+		int pins=pdp->pin_flags>>16;
+		int i;
+		for(i=0;i<pins;i++) {
+			deassign_pin(pdp,pdp->pin_array[i]);
+		}
+		pdp->pin_flags&=~PIN_FLAGS_ASSIGNED;
+	} else {  // not bus
+		int pin=(pdp->bus<<4)|pdp->bpin;
+		deassign_pin(pdp,pin);
+		pdp->pin_flags&=~PIN_FLAGS_ASSIGNED;
 	}
 	return 0;
 }
@@ -432,6 +459,16 @@ static int gpio_control(struct device_handle *dh, int cmd, void *arg1, int arg2)
 			rc=assign_pin(pdp,pin);
 			if (rc<0) return rc;
 			pdp->pin_flags|=PIN_FLAGS_ASSIGNED;
+			break;
+		}
+		case GPIO_UNBIND_PIN: {
+			unsigned int pin;
+			int rc=-1;
+			if (arg2!=4) return rc;
+			pin=*((unsigned int *)arg1);
+			rc=deassign_pin(pdp,pin);
+			if (rc<0) return rc;
+			pdp->pin_flags&=~PIN_FLAGS_ASSIGNED;
 			break;
 		}
 		case GPIO_GET_BOUND_PIN: {
@@ -487,6 +524,15 @@ static int gpio_control(struct device_handle *dh, int cmd, void *arg1, int arg2)
 				set_flags(pdp,ps[i].flags,ps[i].pin);
 			}
 			pdp->pin_flags|=PIN_FLAGS_ASSIGNED;
+			break;
+		}
+		case GPIO_BUS_DEASSIGN_PINS: {
+			int pins=pdp->pin_flags>>16;
+			int i;
+			for(i=0;i<pins;i++) {
+				deassign_pin(pdp,pdp->pin_array[i]);
+			}
+			pdp->pin_flags&=~PIN_FLAGS_ASSIGNED;
 			break;
 		}
 		case GPIO_BUS_READ_BITS: {
