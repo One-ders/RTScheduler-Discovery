@@ -15,6 +15,7 @@ int toupper(int c) {
 	return c;
 }
 
+#if 0
 int isspace(int c) {
 	switch (c) {
 		case ' ':
@@ -30,3 +31,4 @@ int isspace(int c) {
 	}
 	return 0;
 }
+#endif
