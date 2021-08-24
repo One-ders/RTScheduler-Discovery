@@ -1,4 +1,5 @@
 
+#include <stdarg.h>
 
 struct getopt_data {
 	char *optarg;
@@ -15,6 +16,7 @@ typedef long unsigned int size_t;
 
 void *memset(void *m, int c, size_t count);
 void *memcpy(void *dest, const void *src, size_t n);
+int memcmp(const void *s1, const void *s2, size_t n);
 int ffs(long int i);
 int ffsl(long int i);
 
@@ -25,6 +27,7 @@ int strncmp(const char *s1, const char *s2, size_t n);
 unsigned long int strtoul(char *str, char **endp, int base);
 size_t	strlen(const char *s);
 int sprintf(char *str, const char *format, ...);
+int vsnprintf(char *str, size_t size, const char *format, va_list ap);
 
 char *itoa(unsigned int val, char *buf, int bz, int prepend_zero, int prepend_num);
 char *xtoa(unsigned int val, char *buf, int bz, int prepend_zero, int prepend_num);
