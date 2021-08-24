@@ -8,7 +8,10 @@ struct getopt_data {
 	const char *nextchar;
 };
 
-typedef unsigned long size_t;
+#ifndef __SIZE_T
+#define __SIZE_T
+typedef long unsigned int size_t;
+#endif
 
 void *memset(void *m, int c, size_t count);
 void *memcpy(void *dest, const void *src, size_t n);

@@ -1,4 +1,4 @@
-/* $Nosix: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $RT dispatch: , v1.1 2014/04/07 21:44:00 anders Exp $ */
 
 /*
  * Copyright (c) 2014, Anders Franzen.
@@ -70,6 +70,83 @@ int parse_fmt(const char *fmt, int *field_width, int *zero_fill) {
 	if (i>3) while(1) {;}
 	if (i<0) while(1) {;}
 	return i;
+}
+
+int vsnprintf(char *sbuf, size_t sbuf_size, const char *fmt, va_list ap) {
+	int i=0;
+	char numericbuf[16];
+	char *p=sbuf;
+
+	while(1) {
+		int c=fmt[i++];
+		if (!c) break;
+		else if (c=='\n') {
+			memcpy(p,"\n\r",2);
+			p=p+2;
+			continue;
+		} else if (c=='%') {
+			int prepend_zero=0, prepend_num=0;
+			i+=parse_fmt(&fmt[i],&prepend_num, &prepend_zero);
+			switch((c=fmt[i++])) {
+				case 's': {
+					char *s=va_arg(ap,char *);
+					int len=strlen(s);
+					memcpy(p,s,strlen(s));
+					p+=len;
+
+					if ((prepend_num-len)>0) {
+						int j;
+						for(j=0;j<(prepend_num-len);j++) {
+							memcpy(p," ",1);
+							p++;
+						}
+					}
+					break;
+				}
+				case 'c': {
+					int gruuk=va_arg(ap, int);
+					memcpy(p,(char *)&gruuk,1);
+					p++;
+					break;
+				}
+				case 'd': {
+					char *s=itoa(va_arg(ap,unsigned int),numericbuf, 16,
+								prepend_zero, prepend_num);
+					int len=strlen(s);
+					memcpy(p,s,len);
+					p+=len;
+					break;
+				}
+				case 'x': {
+					char *s=xtoa(va_arg(ap,unsigned int),numericbuf, 16,
+							prepend_zero, prepend_num);
+					int len=strlen(s);
+					memcpy(p,s,len);
+					p+=len;
+					break;
+				}
+				case 't': {
+					char *s=ts_format(get_current_tic(),numericbuf, 16);
+					int len=strlen(s);
+					memcpy(p,s,len);
+					p+=len;
+					break;
+				}
+				default: {
+					memcpy(p,"%",1);
+					p++;
+					memcpy(p,(char *)&c,1);
+					p++;
+				}
+			}
+		} else {
+			memcpy(p,(char *)&c,1);
+			p++;
+		}
+	}
+	*p=0;
+	return p-sbuf;
+
 }
 
 int fprintf(int fd, const char *fmt, ...) {
@@ -213,7 +290,6 @@ int sprintf(char *sbuf, const char *fmt, ...) {
 	*p=0;
 	return p-sbuf;
 }
-
 
 #define SET_CURSOR(BUF,X,Y) {BUF[0]=0x1b;BUF[1]='[';BUF[2]=X;BUF[3]=';';BUF[4]=Y;BUF[5]='H';BUF[6]=0;}
 #define FORW_CURSOR(BUF,X)	{BUF[0]=0x1b;BUF[1]='[';BUF[2]=X;BUF[3]='C';BUF[4]=0;}
