@@ -381,6 +381,7 @@ void *handle_syscall(unsigned long int *svc_sp) {
 					t1->next2=0;
 					goto done;
 				}
+				tprev=&t1->next2;
 				t1=tnext;
 			}
 			sys_printf("error at destroy thread\n");

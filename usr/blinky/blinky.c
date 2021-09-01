@@ -8,7 +8,7 @@
 
 #include <string.h>
 
-int blinky(int argc, char **argv, struct Env *env);
+static int blinky(int argc, char **argv, struct Env *env);
 
 static struct cmd cmds[] = {
 	{"help", generic_help_fnc},
@@ -21,8 +21,15 @@ static struct cmd_node cmn = {
 	cmds,
 };
 
-int init_blinky() {
+static int stopit=0;
+
+static int init_blinky() {
+	int argnum=2;
+	char *args[3]={"blinky","on",0};
+	struct Env env;
+	env.io_fd=0;
 	install_cmd_node(&cmn,root_cmd_node);
+	blinky(argnum,args,&env);
 	return 0;
 }
 
@@ -44,7 +51,7 @@ struct blink_data {
 };
 
 
-void blink(struct blink_data *bd) {
+static void blink(struct blink_data *bd) {
 	int fd=io_open(LED_DRV);
 	if (fd<0) return;
 	while(1) {
@@ -53,6 +60,10 @@ void blink(struct blink_data *bd) {
 		if (rc<0) return;
 		if (led_stat&bd->led) {
 			rc=io_control(fd,LED_CTRL_DEACTIVATE,&bd->led,sizeof(bd->led));
+			if (stopit) {
+				io_close(fd);
+				break;
+			}
 		} else {
 			rc=io_control(fd,LED_CTRL_ACTIVATE,&bd->led,sizeof(bd->led));
 		}
@@ -81,7 +92,7 @@ void blink_loop(struct blink_data *bd) {
 #endif
 
 
-int blinky(int argc, char **argv, struct Env *env) {
+static int blinky(int argc, char **argv, struct Env *env) {
 	static int bstate=0;
 #if defined(MB997C)
 	struct blink_data green={LED_GREEN,1000};
@@ -97,9 +108,6 @@ int blinky(int argc, char **argv, struct Env *env) {
 
         fprintf(env->io_fd, "In starting blink tasks\n");
 
-//        io_open("test_driver");
-
-//        thread_create(sys_mon,"usb_serial0",0,2,"sys_mon_u");
 	if (argc!=2) {
 		 fprintf(env->io_fd, "need an argument on or off\n");
 		 return -1;
@@ -107,10 +115,11 @@ int blinky(int argc, char **argv, struct Env *env) {
 
 	if (strcmp(argv[1],"on")==0) {
 		if (bstate==1) {
-			fprintf(env->io_fd, "need an argument on or off\n");
+			fprintf(env->io_fd, "blinky already running\n");
 			return -1;
 		}
 		bstate=1;
+		stopit=0;
 #if defined(MB997C)
 		thread_create(blink,&green,sizeof(green),1,"green");
 		thread_create(blink,&amber,sizeof(amber),1,"amber");
@@ -126,7 +135,9 @@ int blinky(int argc, char **argv, struct Env *env) {
 			fprintf(env->io_fd, "blinky is not running\n");
 			return -1;
 		}
-		fprintf(env->io_fd, "sorry, thread destruct NOT implemented\n");
+		bstate=0;
+		fprintf(env->io_fd, "stopping blinkies\n");
+		stopit=1;
 	}
 	return 0;
 }
