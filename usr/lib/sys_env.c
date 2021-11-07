@@ -1,4 +1,4 @@
-/* $FrameWorks: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $RTos: , v1.1 2014/04/07 21:44:00 anders Exp $ */
 
 /*
  * Copyright (c) 2014, Anders Franzen.
@@ -116,7 +116,24 @@ int argit(char *str, int len, char *argv[16]) {
 				return ac;
 			}
 		}
-		argv[ac]=p;
+		if (*p=='"') {
+			p++;
+			if (p>=(str+len)) {
+				return ac;
+			}
+			argv[ac]=p;
+			while((*p)!='"') {
+				p++;
+				if (p>=(str+len)) {
+					ac++;
+					return ac;
+				}
+			}
+			memmove(p,p+1,strlen(p+1));
+			p[strlen(p)-1]=0;
+		} else {
+			argv[ac]=p;
+		}
 		while((*p)!=' ') {
 			p++;
 			if (p>=(str+len)) {

@@ -1,4 +1,4 @@
-/* $FrameWorks: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $Rts: , v1.1 2014/04/07 21:44:00 anders Exp $ */
 
 /*
  * Copyright (c) 2014, Anders Franzen.
@@ -358,12 +358,7 @@ static int usart_init(void *instance) {
 	usart=USART2;
 	RCC->APB1ENR|=RCC_APB1ENR_USART2EN;
 	usart_irqn=USART2_IRQn;
-//	brr=0x167;          // 115200 at PCKL1=42Mhz over8=0
-#ifdef MB1075B
-	brr=0x187;          // 115200 at PCKL2=45Mhz over8=0
-#else
-	brr=0x16D;          // 115200 at PCKL1=42Mhz over8=0
-#endif
+	brr=0x2d9;          // 115200 at PCKL2=42Mhz over8=0
 #elif   USE_USART==3
 	usart=USART3;
 	RCC->APB1ENR|=RCC_APB1ENR_USART3EN;

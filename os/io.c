@@ -50,11 +50,22 @@ typedef int (*P_CHAR)(char );
 P_STR p_str=0x800009a4;
 P_CHAR p_char=0x80000948;
 #else
+// "allocate"/steal memory below memtop, leave som for boot stack...
+#define PBUF_SIZE 4096
+static char pbuf[PBUF_SIZE];
+static int i_pbuf=0;
 int dum_p_str(char *dum) {
-	if (dum) return 1;
-	return 0;
+	int len=strlen(dum);
+	if ((i_pbuf+len)<PBUF_SIZE) {
+		memcpy(&pbuf[i_pbuf],dum,len);
+		i_pbuf+=len;
+	}
+	return len;
 }
 int dum_p_char(char a) {
+	if (i_pbuf<PBUF_SIZE) {
+		pbuf[i_pbuf++]=a;
+	}
 	return 0;
 }
 P_STR p_str=dum_p_str;
@@ -68,6 +79,11 @@ int io_cb_handler(struct device_handle *dh, int ev, void *dum) {
 }
 
 void io_push() {
+	int i;
+	for (i=0;i<i_pbuf;i+=32) {
+		io_drv->ops->control(io_dh, WR_CHAR, &pbuf[i], 32);
+		sys_udelay(2000);
+	}
 }
 
 int io_add_c(const char c) {

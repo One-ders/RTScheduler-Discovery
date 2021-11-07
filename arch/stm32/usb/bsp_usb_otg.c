@@ -50,20 +50,14 @@ int bsp_usb_init(struct usb_dev_handle *pdev) {
 	}
 
 
-//      ps[0].pin=USB_VBUS;
 	ps[0].pin=USB_ID;
 	flags=GPIO_DIR(0,GPIO_ALTFN_PIN);
-//      flags=GPIO_DIR(0,GPIO_INPUT);
 	flags=GPIO_SPEED(flags,GPIO_SPEED_HIGH);
 	flags=GPIO_DRIVE(flags,GPIO_PUSHPULL);
 	flags=GPIO_ALTFN(flags,altfn);
 	ps[0].flags=flags;
-//      ps[1].pin=USB_ID;
 	ps[1].pin=USB_VBUS;
 	flags=GPIO_DIR(0,GPIO_INPUT);
-//      flags=GPIO_DRIVE(flags,GPIO_PULLUP);
-//      flags=GPIO_SPEED(flags,GPIO_SPEED_HIGH);
-//      flags=GPIO_ALTFN(flags,0xa);
 	ps[1].flags=flags;
 	ps[2].pin=USB_DM;
 	flags=GPIO_DIR(0,GPIO_ALTFN_PIN);

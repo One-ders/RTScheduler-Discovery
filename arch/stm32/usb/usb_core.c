@@ -149,6 +149,22 @@ int usb_config_core(struct usb_dev_handle *pdev) {
 	pdev->cfg.low_power             = 1;
 #endif
 
+#elif defined(BLACKPILL)
+	pdev->regs=(struct usb_otg_regs *)USB_OTG_FS_ADDR;
+	pdev->cfg.host_channels         = 8;
+	pdev->cfg.dev_endpoints         = 4;
+	pdev->cfg.total_fifo_size       = 320; /* ints */
+	pdev->cfg.phy_itf               = USB_OTG_EMBEDDED_PHY;
+
+#ifdef USB_SOF_ENABLED
+	pdev->cfg.sof_output            = 1;
+#endif
+
+#ifdef USB_LOW_PWR_MGMT_SUPPORT
+	pdev->cfg.low_power             = 1;
+#endif
+
+
 #else
 	return -1;
 #endif

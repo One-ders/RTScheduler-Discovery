@@ -102,6 +102,8 @@ static int blinky(int argc, char **argv, struct Env *env) {
 #elif defined(MB1075B)
 	struct blink_data green={LED_GREEN,1000};
 	struct blink_data red={LED_RED,750};
+#elif defined(BLACKPILL)
+	struct blink_data blue={LED_BLUE,750};
 #else
 	return -1;
 #endif
@@ -128,6 +130,8 @@ static int blinky(int argc, char **argv, struct Env *env) {
 #elif defined(MB1075B)
 		thread_create(blink,&green,sizeof(green),1,"green");
 		thread_create(blink, &red,sizeof(red),1, "red");
+#elif defined(BLACKPILL)
+		thread_create(blink, &blue,sizeof(blue),1,"blue");
 #endif
 //	thread_create(blink_loop,&red,sizeof(red),256,"red_looping");
 	} else if (strcmp(argv[1],"off")==0) {

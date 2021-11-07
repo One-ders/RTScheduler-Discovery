@@ -344,6 +344,79 @@ static int dump_log_fnc(int argc, char **argv, struct Env *env) {
 	return 0;
 }
 
+static int cat_fnc(int argc, char **argv, struct Env *env) {
+	int fd;
+	int ok=0;
+	char buf[256];
+
+	buf[0]=0;
+
+	if (argc!=2) {
+		fprintf(env->io_fd,"need drv name as argument\n");
+		return -1;
+	}
+
+	fd=io_open(argv[1]);
+	if (fd<0) {
+		fprintf(env->io_fd,"could not open dev %s\n",argv[1]);
+		return -1;
+	}
+
+	while(1) {
+		ok=io_read(fd,buf,sizeof(buf));
+		if (ok) {
+			if (buf[0]==0x04) {
+				fprintf(env->io_fd, "Control D");
+				break;
+			}
+			buf[ok]=0;
+			if (buf[strlen(buf)-1]== '\n') {
+				char *p=&buf[strlen(buf)];
+				*p='\r';
+				p++;
+				*p=0;
+				fprintf(env->io_fd, "got linefeed");
+			}
+			fprintf(env->io_fd, "%s",buf);
+		} else {
+			break;
+		}
+
+	}
+
+
+	io_close(fd);
+
+	return 0;
+}
+
+static int echo_fnc(int argc, char **argv, struct Env *env) {
+	int fd=env->io_fd;
+	int i;
+
+	if (argc<2) {
+		fprintf(env->io_fd,"need some data\n");
+		return -1;
+	}
+
+	for (i=1; i<argc; i++) {
+		if (i+1!=argc) {
+			fprintf(fd, "%s ",argv[i]);
+
+		} else {
+			fprintf(fd, "%s",argv[i]);
+		}
+	}
+
+	if (fd!=env->io_fd) {
+		io_close(fd);
+	}
+
+	return 0;
+}
+
+
+
 #if 0
 extern int fb_test(void *);
 
@@ -364,6 +437,8 @@ static struct cmd cmd_root[] = {
 		{"reboot",reboot_fnc},
 		{"kmem",kmem_fnc},
 		{"dlog",dump_log_fnc},
+		{"cat",cat_fnc},
+		{"echo",echo_fnc},
 		{0,0}
 };
 

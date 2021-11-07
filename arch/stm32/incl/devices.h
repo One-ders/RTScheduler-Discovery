@@ -9,6 +9,7 @@
 #include <iwdg_reg.h>
 #include <usb_otg_reg.h>
 #include <fmc_reg.h>
+#include <i2c_reg.h>
 
 
 #define RCC	((struct RCC *)(AHB1+0x3800))
@@ -27,6 +28,10 @@
 
 #define USB_OTG_HS_ADDR	((struct usb_otg_regs *)(AHB1+0x20000))
 #define USB_OTG_FS_ADDR	((struct usb_otg_regs *)(AHB2))
+
+#define I2C1	((struct I2C *)(APB1+0x5400))
+#define I2C2	((struct I2C *)(APB1+0x5800))
+#define I2C3	((struct I2C *)(APB1+0x5C00))
 
 #define USART1	((struct USART *)(APB2+0x1000))
 #define USART2	((struct USART *)(APB1+0x4400))

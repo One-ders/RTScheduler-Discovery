@@ -2,9 +2,7 @@
 DRIVERS+=stddrv.o
 DRIVERS+=usb_core_drv.o
 DRIVERS+=usb_serial_drv.o
-DRIVERS+=hr_timer.o
-DRIVERS+=i2c_drv.o
-DRIVERS+=tsc_drv.o
+#DRIVERS+=hr_timer.o
 
 DTARGETS=$(DRIVERS:.o=)
 DOBJS=$(patsubst %, $(OBJ)/drv_obj/%, $(DRIVERS))
@@ -16,7 +14,7 @@ DOBJS+=$(LOBJ)/drv_obj/$(APPLICATION_DRIVERS).o
 endif
 endif
 
-BOARD=MB1075B
+BOARD=BLACKPILL
 ifeq ($(KREL),)
 TOP:=$(shell pwd)/../..
 OBJ?=$(TOP)/boards/$(BOARD)/obj
@@ -52,23 +50,27 @@ endif
 
 LDFLAGS_USR=-g -r $(OBJ)/usr/lib/usrlib.o
 
-RELFILES=obj/arch/stm32/stm32.o obj/arch/stm32/stm32f407/stm32f407.o \
+RELFILES=obj/arch/stm32/stm32.o obj/arch/stm32/stm32f411/stm32f411.o \
 	obj/drv_obj/*.o obj/os/end_sect.o obj/os/init_sect.o obj/os/os.o \
 	obj/usr/lib/usrlib.o obj/usr/sys_cmd/sys_cmd.o Makefile \
 	stm32_flash.ld \
 	$(TOP)/usr/incl ./*.h \
 	incl/*.h incl/stm32/*.h incl/stm32/incl
 
-all: myCore
+all: myCore.bin
+
+myCore.bin: myCore
+	arm-none-eabi-objcopy -O binary myCore myCore.bin
+
 
 rel: myCore
 	tar -cvzf krel-$(VERSION).tgz $(RELFILES)
 
-myCore: $(BASEBUILD_INCL) os version stm32f407 stm32f42xxx stm32 $(DTARGETS) usr.bin.o
+myCore: $(BASEBUILD_INCL) os version stm32f411 stm32 $(DTARGETS) usr.bin.o
 	$(CC) $(LDFLAGS) -o $@ $(OBJ)/os/init_sect.o \
 				$(OBJ)/version.c \
 				$(OBJ)/os/os.o \
-				$(OBJ)/arch/stm32/stm32f407/stm32f407.o \
+				$(OBJ)/arch/stm32/stm32f411/stm32f411.o \
 				$(OBJ)/arch/stm32/stm32.o \
 				$(DOBJS) \
 				$(OBJ)/os/end_sect.o \
@@ -81,13 +83,9 @@ os: $(OBJ)/os/os.o
 stddrv: $(OBJ)/drv_obj/stddrv.o
 usb_serial_drv: $(OBJ)/drv_obj/usb_serial_drv.o
 stm32: $(OBJ)/arch/stm32/stm32.o
-stm32f407: stm32 $(OBJ)/arch/stm32/stm32f407/stm32f407.o
-#stm32f42xxx: stm32 $(OBJ)/arch/stm32/stm32f42xxx/stm32f42xxx.o
-stm32f42xxx: stm32 $(OBJ)/arch/stm32/stm32f42xxx
+stm32f411: stm32 $(OBJ)/arch/stm32/stm32f411/stm32f411.o
 usb_core_drv: $(OBJ)/drv_obj/usb_core_drv.o
 hr_timer: $(OBJ)/drv_obj/hr_timer.o
-i2c_drv: $(OBJ)/drv_obj/i2c_drv.o
-tsc_drv: $(OBJ)/drv_obj/tsc_drv.o
 
 ifeq ($(KREL),)
 includes: $(BDIR)/incl $(BDIR)/usr/incl
@@ -143,7 +141,6 @@ $(OBJ)/usr/pin_test/pin_test.o: $(OBJ)/usr/lib/usrlib.o $(OBJ)/usr/pin_test
 $(OBJ)/usr/pin_test: $(TOP)/usr/pin_test
 	mkdir -p $@
 	lndir $< $@
-
 endif
 
 ifeq ($(KREL),)
@@ -194,53 +191,26 @@ $(OBJ)/arch/stm32/usb: $(TOP)/arch/stm32/usb
 	mkdir -p $@
 	lndir $< $@
 
-$(OBJ)/arch/stm32/stm32f407/stm32f407.o: $(OBJ)/arch/stm32/stm32f407
+$(OBJ)/arch/stm32/stm32f411/stm32f411.o: $(OBJ)/arch/stm32/stm32f411
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 
-$(OBJ)/arch/stm32/stm32f407: $(TOP)/arch/stm32/stm32f407
+$(OBJ)/arch/stm32/stm32f411: $(TOP)/arch/stm32/stm32f411
 	mkdir -p $@
 	lndir $< $@
 
-$(OBJ)/drv_obj/hr_timer.o: stm32f407 $(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o
+$(OBJ)/drv_obj/hr_timer.o: stm32f411 $(OBJ)/arch/stm32/stm32f411/hr_timer/hr_timer.o
 	mkdir -p $(OBJ)/drv_obj
-	cp  $(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o $@
+	cp  $(OBJ)/arch/stm32/stm32f411/hr_timer/hr_timer.o $@
 
-$(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o: $(OBJ)/arch/stm32/stm32f407/hr_timer
+$(OBJ)/arch/stm32/stm32f411/hr_timer/hr_timer.o: $(OBJ)/arch/stm32/stm32f411/hr_timer
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 
-$(OBJ)/arch/stm32/stm32f407/hr_timer: $(TOP)/arch/stm32/stm32f407/hr_timer
-	mkdir -p $@
-	lndir $< $@
-
-
-$(OBJ)/arch/stm32/stm32f42xxx: $(TOP)/arch/stm32/stm32f42xxx
-	mkdir -p $@
-	lndir $< $@
-
-$(OBJ)/drv_obj/i2c_drv.o: stm32f42xxx $(OBJ)/arch/stm32/stm32f42xxx/i2c_drv/i2c_drv.o
-	mkdir -p $(OBJ)/drv_obj
-	cp  $(OBJ)/arch/stm32/stm32f42xxx/i2c_drv/i2c_drv.o $@
-
-$(OBJ)/arch/stm32/stm32f42xxx/i2c_drv/i2c_drv.o: $(OBJ)/arch/stm32/stm32f42xxx/i2c_drv
-	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
-
-$(OBJ)/arch/stm32/stm32f42xxx/i2c_drv: $(TOP)/arch/stm32/stm32f42xxx/i2c_drv
-	mkdir -p $@
-	lndir $< $@
-
-$(OBJ)/drv_obj/tsc_drv.o: stm32f42xxx $(OBJ)/arch/stm32/stm32f42xxx/tsc_drv/tsc_drv.o
-	mkdir -p $(OBJ)/drv_obj
-	cp  $(OBJ)/arch/stm32/stm32f42xxx/tsc_drv/tsc_drv.o $@
-
-$(OBJ)/arch/stm32/stm32f42xxx/tsc_drv/tsc_drv.o: $(OBJ)/arch/stm32/stm32f42xxx/tsc_drv
-	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
-
-$(OBJ)/arch/stm32/stm32f42xxx/tsc_drv: $(TOP)/arch/stm32/stm32f42xxx/tsc_drv
+$(OBJ)/arch/stm32/stm32f411/hr_timer: $(TOP)/arch/stm32/stm32f411/hr_timer
 	mkdir -p $@
 	lndir $< $@
 
 clean:
-	rm -rf $(OBJECTS) myCore
+	rm -rf $(OBJECTS) myCore myCore.bin
 	rm -rf tmp
 	rm -rf obj
 	rm -rf incl

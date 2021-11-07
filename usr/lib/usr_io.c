@@ -341,7 +341,7 @@ static int back_cursor(int fd) {
 #define STATE_C_MULTI  1
 #define STATE_C_ARROW  2
 
-static char history[80][8];
+static char history[40][4];
 static int h_ix;
 
 int readline_r(int fd, char *prompt, char *buf, int buf_size) {

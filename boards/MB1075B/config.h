@@ -2,6 +2,17 @@
 
 #define SYS_CLOCK	180000000
 
+#define MAX_TASKS 	256
+#define TQ_SIZE         1024
+
+#define USB_TX_BSIZE	64
+#define USB_RX_BSIZE 	512
+
+#define USART_TX_BSIZE  1024
+#define USART_RX_BSIZE	16
+
+#define GPIO_PINMEM	256
+
 /* define board */
 #define MB1075B
 

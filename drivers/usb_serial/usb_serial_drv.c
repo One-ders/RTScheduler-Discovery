@@ -1,7 +1,7 @@
-/* $Leanaux: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $RtsOs: , v1.1 2021/11/07 21:44:00 anders Exp $ */
 
 /*
- * Copyright (c) 2014, Anders Franzen.
+ * Copyright (c) 2014-2021, Anders Franzen.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -374,11 +374,12 @@ static const unsigned char Virtual_Com_Port_ConfigDescriptor[] =  {
 };
 
 
-#define TX_BSIZE 64
+//#define TX_BSIZE 64
+#define TX_BSIZE USB_TX_BSIZE
 #define TX_BMASK (TX_BSIZE-1)
 #define IX(a) (a&TX_BMASK)
 
-#define RX_BSIZE 512
+#define RX_BSIZE USB_RX_BSIZE
 
 
 struct usb_data {
@@ -825,7 +826,7 @@ void USB_OTG_BSP_Init(USB_OTG_CORE_HANDLE *pdev) {
 	ps[3].flags=flags;
 
 	pindrv->ops->control(pin_dh,GPIO_BUS_ASSIGN_PINS,ps,sizeof(ps));
-	
+
 #if 0
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
 

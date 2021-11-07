@@ -85,9 +85,19 @@ int loop_read(int argc, char **argv, struct Env *env) {
 	int pin=0;
 	int pin_stat;
 	int rc;
-	int led_red=LED_RED;
+#if defined(LED_RED)
+	int led=LED_RED;
+#elif defined(LED_BLUE)
+	int led=LED_BLUE;
+#elif defined(LED_GREEN)
+	int led=LED_GREEN;
+#elif defined(LED_ORANGE)
+	int led=LED_ORANGE;
+#else
+	#ERROR "dont have a led"
+#endif
 
-        fprintf(env->io_fd, "In reading pin and setting red led when hi\n");
+        fprintf(env->io_fd, "In reading pin and setting led when hi\n");
 
 	if (argc!=2) {
 		 fprintf(env->io_fd, "need argument: PIN_NO\n");
@@ -153,9 +163,9 @@ int loop_read(int argc, char **argv, struct Env *env) {
 
 		fprintf(env->io_fd, "pin (%x) state: %d\n", pin, pin_stat);
 		if (pin_stat) {
-			rc=io_control(led_fd,LED_CTRL_ACTIVATE,&led_red,sizeof(led_red));
+			rc=io_control(led_fd,LED_CTRL_ACTIVATE,&led,sizeof(led));
 		} else {
-			rc=io_control(led_fd,LED_CTRL_DEACTIVATE,&led_red,sizeof(led_red));
+			rc=io_control(led_fd,LED_CTRL_DEACTIVATE,&led,sizeof(led));
 		}
 		rc=io_control(env->io_fd, IO_POLL, (void *)EV_READ,0);
 		if (rc>0) {
@@ -164,7 +174,7 @@ int loop_read(int argc, char **argv, struct Env *env) {
 		}
 	}
 
-	rc=io_control(led_fd,LED_CTRL_DEACTIVATE,&led_red,sizeof(led_red));
+	rc=io_control(led_fd,LED_CTRL_DEACTIVATE,&led,sizeof(led));
 	io_close(gpio_fd);
 	io_close(led_fd);
 	return 0;

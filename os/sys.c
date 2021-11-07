@@ -47,18 +47,18 @@ struct task *troot =&main_task;
 struct task *volatile current = &main_task;
 
 
-struct task *t_array[256];
+struct task *t_array[MAX_TASKS];
 
 void init_task_list() {
         int i;
-        for(i=0;i<255;i++) {
+        for(i=0;i<MAX_TASKS-1;i++) {
                 t_array[i]=0;
         }
 }
 
 int allocate_task_id(struct task *t) {
         int i;
-        for(i=0;i<255;i++) {
+        for(i=0;i<MAX_TASKS-1;i++) {
                 if (!t_array[i]) {
                         t_array[i]=t;
                         t->id=i;
@@ -82,7 +82,7 @@ struct task *lookup_task_for_name(char *task_name) {
 struct tq {
 	struct blocker *tq_out_first;
 	struct blocker *tq_out_last;
-} tq[1024];
+} tq[TQ_SIZE];
 
 volatile unsigned int tq_tic;
 
@@ -93,7 +93,7 @@ void SysTick_Handler(void) {
 	current->active_tics++;
 	sys_irqs++;
 	tq_tic++;
-	tqp=&tq[tq_tic%1024];
+	tqp=&tq[tq_tic%TQ_SIZE];
 
 	enable_interrupts();
 
@@ -935,7 +935,7 @@ void *sys_sleep(unsigned int ms) {
 
 struct tq *sys_timer(struct blocker *so, unsigned int ms) {
 	int wtic=(ms/10)+tq_tic;
-	struct tq *tout=&tq[wtic%1024];
+	struct tq *tout=&tq[wtic%TQ_SIZE];
 	so->wakeup_tic=wtic;
 	so->next=0;
 	if (!tout->tq_out_first) {
@@ -949,7 +949,7 @@ struct tq *sys_timer(struct blocker *so, unsigned int ms) {
 }
 
 static void sys_timer_remove(struct blocker *b) {
-	struct tq *tout=&tq[b->wakeup_tic%1024];
+	struct tq *tout=&tq[b->wakeup_tic%TQ_SIZE];
 	struct blocker *bp=tout->tq_out_first;
 	struct blocker **bpp=&tout->tq_out_first;
 	struct blocker *bprev=0;

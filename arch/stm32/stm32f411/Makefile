@@ -1,14 +1,13 @@
 
-ODIR=$(OBJ)/arch/stm32/stm32f407
+ODIR=$(OBJ)/arch/stm32/stm32f411
 
-OUT=$(ODIR)/stm32f407.o
+OUT=$(ODIR)/stm32f411.o
 
 OBJECTS= \
 	$(ODIR)/startup_stm32f4xx.s \
 	$(ODIR)/gpio_drv.o \
 	$(ODIR)/usart_drv.o \
 	$(ODIR)/iwdg_drv.o \
-	$(ODIR)/extmem_drv.o \
 	$(ODIR)/startup.o \
 	$(ODIR)/led_drv.o
 
