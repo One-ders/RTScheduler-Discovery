@@ -358,7 +358,7 @@ static int usart_init(void *instance) {
 	usart=USART2;
 	RCC->APB1ENR|=RCC_APB1ENR_USART2EN;
 	usart_irqn=USART2_IRQn;
-	brr=0x2d9;          // 115200 at PCKL2=42Mhz over8=0
+	brr=0x16d;          // 115200 at PCKL2=42Mhz over8=0
 #elif   USE_USART==3
 	usart=USART3;
 	RCC->APB1ENR|=RCC_APB1ENR_USART3EN;

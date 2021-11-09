@@ -166,23 +166,30 @@ int usb_config_core(struct usb_dev_handle *pdev) {
 
 
 #else
+	#error no USB backend associated with this board
 	return -1;
 #endif
 	return 0;
 }
 
 int usb_core_init_core(struct usb_otg_regs *regs, struct usb_cfg *usb_cfg) {
+	int novbuspin=0;
 	/* Use the embedded FS interface */
 	regs->core.g_usb_cfg|=G_USB_CFG_PHSEL;
 	reset_core(regs);
+#ifndef VBUS_PIN
+	novbuspin=G_C_CFG_NOVBUSSENS;
+#endif
 	if (usb_cfg->sof_output) {
 		regs->core.g_c_cfg=G_C_CFG_SOFOUTEN|
+				novbuspin|
 				G_C_CFG_VBUSBSEN|
 				G_C_CFG_VBUSASEN|
 				G_C_CFG_PWRDWN;
 
 	} else {
-		regs->core.g_c_cfg=G_C_CFG_VBUSBSEN|
+		regs->core.g_c_cfg=novbuspin|
+				G_C_CFG_VBUSBSEN|
 				G_C_CFG_VBUSASEN|
 				G_C_CFG_PWRDWN;
 	}
@@ -274,6 +281,7 @@ static int host_init_core(struct usb_dev_handle *pdev) {
 
 	pdev->regs->host.h_cfg&=~H_CFG_FSLSS;
 
+#ifdef USB_OTG_HS_ADDR
 	if (pdev->regs==USB_OTG_HS_ADDR) {
 		pdev->regs->core.g_rx_fsiz=RX_FIFO_HS_SIZE; // 512
 		pdev->regs->core.g_nptxfcnf=(TXH_NP_FIFO_HS_SIZE<<G_NPTX_FCNF_D_SHIFT)| // 96
@@ -289,6 +297,14 @@ static int host_init_core(struct usb_dev_handle *pdev) {
 		pdev->regs->core.hptx_fcnf=(TXH_P_FIFO_FS_SIZE<<PTX_FCNF_D_SHIFT) |
 			((RX_FIFO_FS_SIZE+TXH_NP_FIFO_FS_SIZE)<<PTX_FCNF_A_SHIFT);
 	}
+#else
+	pdev->regs->core.g_rx_fsiz=RX_FIFO_FS_SIZE; // 512
+	pdev->regs->core.g_nptxfcnf=(TXH_NP_FIFO_FS_SIZE<<G_NPTX_FCNF_D_SHIFT)| // 96
+			(RX_FIFO_FS_SIZE<<G_NPTX_FCNF_A_SHIFT);  // 512
+
+	pdev->regs->core.hptx_fcnf=(TXH_P_FIFO_FS_SIZE<<PTX_FCNF_D_SHIFT) |
+		((RX_FIFO_FS_SIZE+TXH_NP_FIFO_FS_SIZE)<<PTX_FCNF_A_SHIFT);
+#endif
 
 	pdev->regs->core.g_otg_ctl&=~G_OTG_CTL_HSHNPEN;
 
@@ -600,6 +616,7 @@ int usb_core_dev_core_init(struct usb_dev_handle *pdev) {
 			regs->core.dieptxf[i]=txfifo_data;
 		}
 
+#ifdef USB_OTG_HS_ADDR
 	} else if (regs==USB_OTG_HS_ADDR) {
 		unsigned int tx_fifo_size[] = {TX1_FIFO_HS_SIZE,
 					TX2_FIFO_HS_SIZE,
@@ -623,6 +640,7 @@ int usb_core_dev_core_init(struct usb_dev_handle *pdev) {
 			tx_fifo_addr+=tx_fifo_size[i];
 			regs->core.dieptxf[i]=txfifo_data;
 		}
+#endif
 	}
 
 	usb_core_flush_tx_fifo(regs, 0x10);

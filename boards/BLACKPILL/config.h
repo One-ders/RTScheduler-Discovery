@@ -29,11 +29,12 @@
 
 #if 1
 /* Usb */
-#define USB_VBUS	GPIO_PIN(PA,9)
-#define USB_ID		GPIO_PIN(PA,10)
 #define USB_DM		GPIO_PIN(PA,11)
 #define USB_DP		GPIO_PIN(PA,12)
 #endif
+
+//define USB_VBUS	GPIO_PIN(PA,9)
+//define USB_ID		GPIO_PIN(PA,10)
 
 
 /* User leds */
@@ -41,6 +42,9 @@
 #define LED_PINS 	GPIO_PIN(PC,13)
 #define LED_BLUE	1
 
+
+#define SYS_CONSOLE_DEV		"usb_serial0"
+#define USER_CONSOLE_DEV	"usb_serial0"
 
 #if 0
 /* Cec */

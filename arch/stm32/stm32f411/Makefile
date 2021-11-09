@@ -5,7 +5,6 @@ OUT=$(ODIR)/stm32f411.o
 
 OBJECTS= \
 	$(ODIR)/startup_stm32f4xx.s \
-	$(ODIR)/gpio_drv.o \
 	$(ODIR)/usart_drv.o \
 	$(ODIR)/iwdg_drv.o \
 	$(ODIR)/startup.o \

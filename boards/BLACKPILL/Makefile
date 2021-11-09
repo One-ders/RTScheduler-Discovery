@@ -1,5 +1,6 @@
 
 DRIVERS+=stddrv.o
+DRIVERS+=gpio_drv.o
 DRIVERS+=usb_core_drv.o
 DRIVERS+=usb_serial_drv.o
 #DRIVERS+=hr_timer.o
@@ -34,7 +35,7 @@ export CC:=arm-none-eabi-gcc
 export LD:=arm-none-eabi-ld
 export OBJCOPY:=arm-none-eabi-objcopy
 
-CFLAGS=-I. -I$(BDIR)/incl -I$(BDIR) -I$(BDIR)/incl/stm32 -I$(BDIR)/incl/stm32/incl -g -O2 -DDEBUG -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
+CFLAGS=-I. -I$(BDIR)/incl -I$(BDIR)/incl/stm32/stm32f411/incl -I$(BDIR) -I$(BDIR)/incl/stm32 -I$(BDIR)/incl/stm32/incl -g -O2 -DDEBUG -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
 CFLAGS_USR:=-I$(TOP)/usr/incl -I$(BDIR) -I$(GCC_BASE)/lib/gcc/arm-none-eabi/4.8.3/include -g -Os -DDEBUG -fno-builtin -ffreestanding -nostdinc -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
@@ -86,6 +87,7 @@ stm32: $(OBJ)/arch/stm32/stm32.o
 stm32f411: stm32 $(OBJ)/arch/stm32/stm32f411/stm32f411.o
 usb_core_drv: $(OBJ)/drv_obj/usb_core_drv.o
 hr_timer: $(OBJ)/drv_obj/hr_timer.o
+gpio_drv: $(OBJ)/drv_obj/gpio_drv.o
 
 ifeq ($(KREL),)
 includes: $(BDIR)/incl $(BDIR)/usr/incl
@@ -197,6 +199,18 @@ $(OBJ)/arch/stm32/stm32f411/stm32f411.o: $(OBJ)/arch/stm32/stm32f411
 $(OBJ)/arch/stm32/stm32f411: $(TOP)/arch/stm32/stm32f411
 	mkdir -p $@
 	lndir $< $@
+
+$(OBJ)/drv_obj/gpio_drv.o: stm32f411 $(OBJ)/arch/stm32/gpio/gpio_drv.o
+	mkdir -p $(OBJ)/drv_obj
+	cp  $(OBJ)/arch/stm32/gpio/gpio.o $@
+
+$(OBJ)/arch/stm32/gpio/gpio_drv.o: $(OBJ)/arch/stm32/gpio
+	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
+
+$(OBJ)/arch/stm32/gpio: $(TOP)/arch/stm32/gpio
+	mkdir -p $@
+	lndir $< $@
+
 
 $(OBJ)/drv_obj/hr_timer.o: stm32f411 $(OBJ)/arch/stm32/stm32f411/hr_timer/hr_timer.o
 	mkdir -p $(OBJ)/drv_obj

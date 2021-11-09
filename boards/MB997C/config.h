@@ -35,6 +35,8 @@
 #define USB_OC		GPIO_PIN(PD,5)
 #endif
 
+#define SYS_CONSOLE_DEV		"usart0"
+#define USER_CONSOLE_DEV	"usart0"
 
 /* User leds */
 #define USER_LEDS	4

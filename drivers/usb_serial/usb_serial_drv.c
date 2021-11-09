@@ -106,9 +106,9 @@
 
 #define USB_SIZ_STRING_LANGID		4
 #define USBD_LANGID_STRING            0x409
-#define USBD_MANUFACTURER_STRING      ((unsigned char *)"FranzBalanz Electronics")
+#define USBD_MANUFACTURER_STRING      ((unsigned char *)"Hacker Bolaget")
 
-#define USBD_PRODUCT_FS_STRING		((unsigned char *)"Lionel Groulx v 1.0")
+#define USBD_PRODUCT_FS_STRING		((unsigned char *)"Vcom port")
 #define USBD_PRODUCT_HS_STRING		((unsigned char *)"HS Njet")
 
 #define USBD_SERIALNUMBER_FS_STRING	((unsigned char *)"00000000011C")

@@ -1209,17 +1209,21 @@ int driver_publish(struct driver *drv) {
 	}
 
 	/* next two blocks are for late registers */
-	if (!(drv->stat&DRV_SYS_STAT_INITED)) {
-		drv->stat|=DRV_SYS_STAT_INITED;
-		if (drv->ops->init) {
-			drv->ops->init(drv->instance);
+	if (drv_sys_stat&DRV_SYS_STAT_INITED) {
+		if (!(drv->stat&DRV_SYS_STAT_INITED)) {
+			drv->stat|=DRV_SYS_STAT_INITED;
+			if (drv->ops->init) {
+				drv->ops->init(drv->instance);
+			}
 		}
 	}
 
-	if (!(drv->stat&DRV_SYS_STAT_STARTED)) {
-		drv->stat|=DRV_SYS_STAT_STARTED;
-		if (drv->ops->start) {
-			drv->ops->start(drv->instance);
+	if (drv_sys_stat&DRV_SYS_STAT_STARTED) {
+		if (!(drv->stat&DRV_SYS_STAT_STARTED)) {
+			drv->stat|=DRV_SYS_STAT_STARTED;
+			if (drv->ops->start) {
+				drv->ops->start(drv->instance);
+			}
 		}
 	}
 
@@ -1232,7 +1236,6 @@ int driver_init() {
 	if (drv_sys_stat&DRV_SYS_STAT_INITED) {
 		return 0;
 	}
-	drv_sys_stat|=DRV_SYS_STAT_INITED;
 	while(d) {
 		if (d->ops->init&&!(d->stat&DRV_SYS_STAT_INITED)) {
 			d->stat|=DRV_SYS_STAT_INITED;
@@ -1240,6 +1243,7 @@ int driver_init() {
 		}
 		d=d->next;
 	}
+	drv_sys_stat|=DRV_SYS_STAT_INITED;
 	return 0;
 }
 
@@ -1248,7 +1252,6 @@ int driver_start() {
 	if (drv_sys_stat&DRV_SYS_STAT_STARTED) {
 		return 0;
 	}
-	drv_sys_stat|=DRV_SYS_STAT_STARTED;
 	while(d) {
 		if (d->ops->start&&!(d->stat&DRV_SYS_STAT_STARTED)) {
 			d->stat|=DRV_SYS_STAT_STARTED;
@@ -1256,6 +1259,7 @@ int driver_start() {
 		}
 		d=d->next;
 	}
+	drv_sys_stat|=DRV_SYS_STAT_STARTED;
 	return 0;
 }
 
@@ -1342,7 +1346,11 @@ static int console_init(void *instance) {
 }
 
 static int console_start(void *instance) {
+#ifdef SYS_CONSOLE_DEV
+	my_usart=driver_lookup(SYS_CONSOLE_DEV);
+#else
 	my_usart=driver_lookup("usart0");
+#endif
 	if (!my_usart) {
 		sys_printf("dont have usart\n");
 		return 0;
@@ -1422,7 +1430,11 @@ void start_sys(void) {
 	stackp=((unsigned long int)t)+4096;
 	t->estack=((unsigned long int)t)+2048;
 	stackp=stackp-8;
+#ifdef USER_CONSOLE_DEV
+	strcpy((void *)stackp,USER_CONSOLE_DEV);
+#else
 	strcpy((void *)stackp,"usart0");
+#endif
 	setup_return_stack(t,(void *)stackp,(unsigned long int)usr_init,0, (void *)stackp, (void *)8);
 
 	t->next2=troot;

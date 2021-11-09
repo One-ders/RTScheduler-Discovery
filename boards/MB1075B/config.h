@@ -141,6 +141,9 @@
 #define FMC_D29  PI7
 #endif
 
+#define SYS_CONSOLE_DEV		"usart0"
+#define USER_CONSOLE_DEV	"usart0"
+
 
 /* User Leds */
 #define USER_LEDS	2

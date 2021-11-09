@@ -296,7 +296,7 @@ static int set_flags(struct pin_data *pdp, unsigned int flags, unsigned int optp
 	}
 
 	if ((dir==GPIO_OUTPUT)||(dir==GPIO_BUSPIN)) {
-		sys_printf("pin is output or bus\n");
+//		sys_printf("pin is output or bus (%x:%x)\n", bus,pin);
 		GPIO[bus]->moder&=~(3<<(pin<<1));
 		if (dir==GPIO_OUTPUT) {
 			GPIO[bus]->moder|=(1<<(pin<<1));
@@ -317,35 +317,35 @@ static int set_flags(struct pin_data *pdp, unsigned int flags, unsigned int optp
 	}
 
 	if ((dir==GPIO_INPUT)||(dir==GPIO_BUSPIN)) {
-		sys_printf("pin is input or bus\n");
+//		sys_printf("pin is input or bus (%x:%x)\n", bus,pin);
 		GPIO[bus]->moder&=~(3<<(pin<<1));
 
 		switch(drive) {
 			case GPIO_FLOAT: {
-				sys_printf("gpio float\n");
+//				sys_printf("gpio float (%x:%x)\n",bus,pin);
 				GPIO[bus]->pupdr&=~(3<<(pin<<1));
 				break;
 			}
 			case GPIO_PULLUP: {
-				sys_printf("gpio pullup\n");
+//				sys_printf("gpio pullup (%x:%x)\n",bus,pin);
 				GPIO[bus]->pupdr&=~(3<<(pin<<1));
 				GPIO[bus]->pupdr|=(1<<(pin<<1));
 				break;
 			}
 			case GPIO_PULLDOWN: {
-				sys_printf("gpio_pulldown\n");
+//				sys_printf("gpio_pulldown (%x:%x)\n",bus,pin);
 				GPIO[bus]->pupdr&=~(3<<(pin<<1));
 				GPIO[bus]->pupdr|=(2<<(pin<<1));
 				break;
 			}
 			default: {
-				sys_printf(" gpio unknown drive mode %d\n",drive);
+//				sys_printf(" gpio unknown drive mode %d\n",drive);
 			}
 		}
 	}
 
 	if (dir==GPIO_ALTFN_PIN) {
-		sys_printf("pin is altfn\n");
+//		sys_printf("pin is altfn (%x:%x)=%x\n",bus,pin,altfn);
 		GPIO[bus]->moder&=~(3<<(pin<<1));
 		GPIO[bus]->moder|=(2<<(pin<<1));
 		if (speed) {

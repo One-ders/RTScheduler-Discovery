@@ -1,4 +1,4 @@
-/* $micro kernel architecture: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $RTSOs: , v1.1 2014/04/07 21:44:00 anders Exp $ */
 
 /*
  * Copyright (c) 2014, Anders Franzen.
@@ -515,7 +515,11 @@ int sys_log(const char *fmt, ...) {
 
 void init_io(void) {
 	if (io_drv) goto io_done;
+#ifdef SYS_CONSOLE_DEV
+	io_drv=driver_lookup(SYS_CONSOLE_DEV);
+#else
 	io_drv=driver_lookup("usart0");
+#endif
 	if (!io_drv) {
 		goto io_done;
 	}

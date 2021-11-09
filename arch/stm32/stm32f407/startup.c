@@ -29,17 +29,11 @@ void clk_init(void) {
 		 RCC_CR_CSSON |
 		 RCC_CR_PLLON);
 
-#ifdef MB1075B
+	// write reset value 0x24003010
 	RCC->PLLCFGR= 0x20000000 |
 			(RCC_PLLCFGR_PLLQ2 |
 			 (0xc0 << RCC_PLLCFGR_PLLN_SHIFT) |
 			RCC_PLLCFGR_PLLM4);
-#else
-	RCC->PLLCFGR= 0x20000000 |
-			(RCC_PLLCFGR_PLLQ2 |
-			 (0xc0 << RCC_PLLCFGR_PLLN_SHIFT) |
-			RCC_PLLCFGR_PLLM4);
-#endif
 
 	RCC->CR &= ~RCC_CR_HSEBYP;
 
@@ -56,9 +50,6 @@ void clk_init(void) {
 		HSE_status=1;
 	} else {
 		HSE_status=0;
-	}
-
-	if (!HSE_status) {
 		/* Failed to start external clock */
 		return;
 		ASSERT(0);

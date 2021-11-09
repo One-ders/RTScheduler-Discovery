@@ -1,10 +1,11 @@
 
 DRIVERS+=stddrv.o
+DRIVERS+=gpio_drv.o
 DRIVERS+=usb_core_drv.o
 DRIVERS+=usb_serial_drv.o
 DRIVERS+=hr_timer.o
-DRIVERS+=i2c_drv.o
-DRIVERS+=tsc_drv.o
+#DRIVERS+=i2c_drv.o
+#DRIVERS+=tsc_drv.o
 
 DTARGETS=$(DRIVERS:.o=)
 DOBJS=$(patsubst %, $(OBJ)/drv_obj/%, $(DRIVERS))
@@ -36,7 +37,7 @@ export CC:=arm-none-eabi-gcc
 export LD:=arm-none-eabi-ld
 export OBJCOPY:=arm-none-eabi-objcopy
 
-CFLAGS=-I. -I$(BDIR)/incl -I$(BDIR) -I$(BDIR)/incl/stm32 -I$(BDIR)/incl/stm32/incl -g -O2 -DDEBUG -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
+CFLAGS=-I. -I$(BDIR)/incl -I$(BDIR) -I$(BDIR)/incl/stm32/stm32f407/incl -I$(BDIR)/incl/stm32 -I$(BDIR)/incl/stm32/incl -g -O2 -DDEBUG -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
 CFLAGS_USR:=-I$(TOP)/usr/incl -I$(BDIR) -I$(GCC_BASE)/lib/gcc/arm-none-eabi/4.8.3/include -g -Os -DDEBUG -fno-builtin -ffreestanding -nostdinc -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
@@ -85,6 +86,7 @@ stm32f407: stm32 $(OBJ)/arch/stm32/stm32f407/stm32f407.o
 #stm32f42xxx: stm32 $(OBJ)/arch/stm32/stm32f42xxx/stm32f42xxx.o
 stm32f42xxx: stm32 $(OBJ)/arch/stm32/stm32f42xxx
 usb_core_drv: $(OBJ)/drv_obj/usb_core_drv.o
+gpio_drv: $(OBJ)/drv_obj/gpio_drv.o
 hr_timer: $(OBJ)/drv_obj/hr_timer.o
 i2c_drv: $(OBJ)/drv_obj/i2c_drv.o
 tsc_drv: $(OBJ)/drv_obj/tsc_drv.o
@@ -143,7 +145,6 @@ $(OBJ)/usr/pin_test/pin_test.o: $(OBJ)/usr/lib/usrlib.o $(OBJ)/usr/pin_test
 $(OBJ)/usr/pin_test: $(TOP)/usr/pin_test
 	mkdir -p $@
 	lndir $< $@
-
 endif
 
 ifeq ($(KREL),)
@@ -200,6 +201,18 @@ $(OBJ)/arch/stm32/stm32f407/stm32f407.o: $(OBJ)/arch/stm32/stm32f407
 $(OBJ)/arch/stm32/stm32f407: $(TOP)/arch/stm32/stm32f407
 	mkdir -p $@
 	lndir $< $@
+
+$(OBJ)/drv_obj/gpio_drv.o: stm32f407 $(OBJ)/arch/stm32/gpio/gpio_drv.o
+	mkdir -p $(OBJ)/drv_obj
+	cp  $(OBJ)/arch/stm32/gpio/gpio_drv.o $@
+
+$(OBJ)/arch/stm32/gpio/gpio_drv.o: $(OBJ)/arch/stm32/gpio
+	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
+
+$(OBJ)/arch/stm32/gpio: $(TOP)/arch/stm32/gpio
+	mkdir -p $@
+	lndir $< $@
+
 
 $(OBJ)/drv_obj/hr_timer.o: stm32f407 $(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o
 	mkdir -p $(OBJ)/drv_obj

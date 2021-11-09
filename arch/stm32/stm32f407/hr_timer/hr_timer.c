@@ -384,7 +384,7 @@ static struct driver hr_timer = {
 
 
 void init_hr_timer() {
-	sys_printf("init_hr_timer");
+	sys_printf("init_hr_timer\n");
 	driver_publish(&hr_timer);
 }
 

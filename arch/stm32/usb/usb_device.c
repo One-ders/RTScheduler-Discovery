@@ -24,7 +24,7 @@ void usb_dev_init(struct usb_dev_handle *pdev) {
 		ep->xfer_buf=0;
 		ep->xfer_len=0;
 	}
-	
+
 	for(i=0;i<pdev->cfg.dev_endpoints;i++) {
 		ep=&pdev->dev.out_ep[i];
 		ep->is_in=0;
@@ -67,7 +67,7 @@ unsigned int usb_dev_ep_open(struct usb_dev_handle *pdev,
 	if (ep_type==EP_TYPE_BULK) {
 		ep->data_pid_start=0;
 	}
-	
+
 	usb_core_dev_EP_activate(pdev->regs,ep);
 	return 0;
 }
@@ -217,11 +217,11 @@ static void usb_dev_set_ep_status(struct usb_dev_handle *pdev,
 	usb_core_dev_set_ep_status(pdev->regs,ep,status);
 }
 
-unsigned int usb_dev_get_string(unsigned char *desc, 
-				unsigned char *unicode, 
+unsigned int usb_dev_get_string(unsigned char *desc,
+				unsigned char *unicode,
 				unsigned short *len) {
 	unsigned char idx=0;
-	
+
 	if (desc) {
 		*len=(strlen(desc)*2)+2;
 		unicode[idx++]=*len;
