@@ -1,4 +1,4 @@
-/* $FrameWorks: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $RTOs: , v1.1 2014/04/07 21:44:00 anders Exp $ */
 
 /*
  * Copyright (c) 2014, Anders Franzen.
@@ -350,7 +350,8 @@ static int usart_init(void *instance) {
 	RCC->APB2ENR|=RCC_APB2ENR_USART1EN;
 	usart_irqn=USART1_IRQn;
 #ifdef MB1075B
-	brr=0x30d;	// 115200 at PCKL2=90Mhz over8=0
+//	brr=0x30d;	// 115200 at PCKL2=90Mhz over8=0
+	brr=0x2d9;	// 115200 at PCKL2=84Mhz over8=0
 #else
 	brr=0x2d9;	// 115200 at PCKL2=84Mhz over8=0
 #endif
@@ -360,7 +361,8 @@ static int usart_init(void *instance) {
 	usart_irqn=USART2_IRQn;
 //	brr=0x167;          // 115200 at PCKL1=42Mhz over8=0
 #ifdef MB1075B
-	brr=0x187;          // 115200 at PCKL2=45Mhz over8=0
+//	brr=0x187;          // 115200 at PCKL2=45Mhz over8=0
+	brr=0x16D;          // 115200 at PCKL1=42Mhz over8=0
 #else
 	brr=0x16D;          // 115200 at PCKL1=42Mhz over8=0
 #endif
@@ -370,7 +372,8 @@ static int usart_init(void *instance) {
 	usart_irqn=USART3_IRQn;
 //	brr=0x167;          // 115200 at PCKL1=42Mhz over8=0
 #ifdef MB1075B
-	brr=0x187;          // 115200 at PCKL2=45Mhz over8=0
+//	brr=0x187;          // 115200 at PCKL2=45Mhz over8=0
+	brr=0x16D;          // 115200 at PCKL1=42Mhz over8=0
 #else
 	brr=0x16D;          // 115200 at PCKL1=42Mhz over8=0
 #endif

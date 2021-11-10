@@ -4,15 +4,17 @@
 #include <stm32f407.h>
 #include <devices.h>
 
-#define PLL_M	8
-
 #ifdef MB1075B
-#define PLL_N	360
-#else
+#define PLL_M	8
 #define PLL_N	336
-#endif
-#define PLL_P	2
+#define PLL_P	0  // same as divide by 2
 #define PLL_q	7
+#else
+#define PLL_M	8
+#define PLL_N	336
+#define PLL_P	0  // same as divide by 2
+#define PLL_q	7
+#endif
 
 #define HSE_STARTUP_TIMEOUT	0x0500
 
