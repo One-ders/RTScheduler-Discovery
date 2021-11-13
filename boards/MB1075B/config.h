@@ -6,7 +6,7 @@
 #define MAX_TASKS 	256
 #define TQ_SIZE         1024
 
-#define USB_TX_BSIZE	64
+#define USB_TX_BSIZE	128
 #define USB_RX_BSIZE 	512
 
 #define USART_TX_BSIZE  1024
@@ -145,6 +145,8 @@
 #define SYS_CONSOLE_DEV		"usart0"
 #define USER_CONSOLE_DEV	"usart0"
 
+#define USB_VENDOR	0x24,0x04
+#define USB_PRODUCT	0x4e,0x27
 
 /* User Leds */
 #define USER_LEDS	2

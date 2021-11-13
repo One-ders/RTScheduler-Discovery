@@ -68,6 +68,7 @@ typedef struct
 
 
 #endif
+
 //#define TXB_SIZE 1024
 #define TXB_SIZE USART_TX_BSIZE
 #define TXB_MASK (TXB_SIZE-1)
@@ -97,8 +98,8 @@ struct usart_data {
 struct user_data {
 	struct device_handle dh;
 	struct usart_data *drv_data;
-	DRV_CBH	callback;
 	void  	*userdata;
+	DRV_CBH	callback;
 	int	events;
 };
 
@@ -108,6 +109,21 @@ static struct usart_data usart_data0;
 static struct user_data udata[MAX_USERS];
 static int (*usart_putc_fnc)(struct user_data *, int c);
 static int usart_putc(struct user_data *u, int c);
+
+static void wakeup_users(unsigned int ev) {
+	int i;
+
+	for(i=0;i<MAX_USERS;i++) {
+		unsigned int rev;
+		if ((udata[i].drv_data)&&
+			(udata[i].callback) &&
+			(rev=udata[i].events&ev)) {
+                        udata[i].events&=~ev;
+                        udata[i].callback(&udata[i].dh,rev,udata[i].userdata);
+                }
+        }
+}
+
 
 #if USE_USART==1
 void USART1_IRQHandler(void) {
@@ -127,6 +143,7 @@ void USART3_IRQHandler(void) {
 		if (usart_data0.wblocker_list.first){
 			 sys_wakeup_from_list(&usart_data0.wblocker_list);
 		}
+		wakeup_users(EV_WRITE);
 		sys_printf("SR_LBD\n");
 		return;
 	} else {
@@ -143,6 +160,7 @@ void USART3_IRQHandler(void) {
 				if (usart_data0.wblocker_list.first) {
 					sys_wakeup_from_list(&usart_data0.wblocker_list);
 				}
+				wakeup_users(EV_WRITE);
 			}
 		} else {
 			usart->CR1&=~(USART_CR1_TXEIE|USART_CR1_TCIE);
@@ -163,6 +181,7 @@ void USART3_IRQHandler(void) {
 		if (usart_data0.rblocker_list.first) {
 			sys_wakeup_from_list(&usart_data0.rblocker_list);
 		}
+		wakeup_users(EV_READ);
 	}
 	if (st&USART_SR_ORE) {
 		usart->DR=usart->DR;
@@ -341,10 +360,6 @@ static int usart_init(void *instance) {
 	struct usart_data *ud=(struct usart_data *)instance;
 	usart_putc_fnc=usart_putc;
 
-#if 0
-	busckl*100/(baudr*16) = aabb
-	brr=(aa<<4)|((bb*16)/100)
-#endif
 #if	USE_USART==1
 	usart=USART1;
 	RCC->APB2ENR|=RCC_APB2ENR_USART1EN;
@@ -359,7 +374,6 @@ static int usart_init(void *instance) {
 	usart=USART2;
 	RCC->APB1ENR|=RCC_APB1ENR_USART2EN;
 	usart_irqn=USART2_IRQn;
-//	brr=0x167;          // 115200 at PCKL1=42Mhz over8=0
 #ifdef MB1075B
 //	brr=0x187;          // 115200 at PCKL2=45Mhz over8=0
 	brr=0x16D;          // 115200 at PCKL1=42Mhz over8=0
@@ -370,26 +384,12 @@ static int usart_init(void *instance) {
 	usart=USART3;
 	RCC->APB1ENR|=RCC_APB1ENR_USART3EN;
 	usart_irqn=USART3_IRQn;
-//	brr=0x167;          // 115200 at PCKL1=42Mhz over8=0
 #ifdef MB1075B
 //	brr=0x187;          // 115200 at PCKL2=45Mhz over8=0
 	brr=0x16D;          // 115200 at PCKL1=42Mhz over8=0
 #else
 	brr=0x16D;          // 115200 at PCKL1=42Mhz over8=0
 #endif
-#endif
-
-#if 0
-	RCC->AHB1ENR|=RCC_AHB1ENR_GPIOCEN;
-
-	/* USART3 uses PC10 for tx, PC11 for rx according to table 5 in  discovery documentation */
-//	GPIOC->AFRH = 0;
-
-	GPIOC->AFRH |= 0x00007000;  /* configure pin 11 to AF7 (USART3) */
-	GPIOC->AFRH |= 0x00000700;  /* confiure pin 10 to AF7 */
-	GPIOC->MODER |= (0x2 << 22);  /* set pin 11 to AF */
-	GPIOC->MODER |= (0x2 << 20);  /* set pin 10 to AF */
-	GPIOC->OSPEEDR |= (0x3 << 20); /* set pin 10 output high speed */
 #endif
 
 	usart->BRR=brr;
@@ -435,6 +435,7 @@ static int usart_start(void *instance) {
 	}
 
 	flags=GPIO_DIR(0,GPIO_ALTFN_PIN);
+	flags=GPIO_DRIVE(flags,GPIO_PULLDOWN);
 	flags=GPIO_ALTFN(flags,7);
 	rc=pindrv->ops->control(rxpin_dh,GPIO_SET_FLAGS, &flags, sizeof(flags));
 	if (rc<0) {

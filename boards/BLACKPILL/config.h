@@ -7,7 +7,7 @@
 #define MAX_TASKS	256
 #define TQ_SIZE		1024
 
-#define USB_TX_BSIZE	16
+#define USB_TX_BSIZE	128 // lower than 128 will result in a bootup crash
 #define USB_RX_BSIZE	64
 
 #define USART_TX_BSIZE  1024
@@ -21,6 +21,8 @@
 #define SDRAM_SIZE	128*1024
 #define BYTES_PER_LONG	4
 
+#define USB_VENDOR	0x24,0x04
+#define USB_PRODUCT	0x4e,0x27
 
 /* Usart */
 #define USE_USART	2
@@ -43,6 +45,8 @@
 #define LED_BLUE	1
 
 
+//#define SYS_CONSOLE_DEV		"usart0"
+//#define USER_CONSOLE_DEV	"usart0"
 #define SYS_CONSOLE_DEV		"usb_serial0"
 #define USER_CONSOLE_DEV	"usb_serial0"
 

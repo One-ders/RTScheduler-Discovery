@@ -42,23 +42,33 @@ static int started=0;
 
 /*************************  Led driver ***************************/
 
+// Blackpill is active low, so invert all on off actions
+
 static int led_control(struct device_handle *dh, int cmd, void *arg1, int arg2) {
         switch(cmd) {
                 case LED_CTRL_STAT:
 			if (arg2<4) return -1;
-//			*((unsigned int *)arg1)=GPIOD->ODR&0xf000;
 			pindrv->ops->control(pin_dh, GPIO_BUS_READ_BITS, arg1, arg2);
+#ifdef BLACKPILL
+			*((unsigned int *)arg1)=~(*((unsigned int *)arg1));    // for blackpill, led is active low
+#endif
                         return 0;
                 case LED_CTRL_ACTIVATE: {
 			if (arg2<4) return -1;
-//			GPIOD->ODR|=((*((unsigned int *)arg1))&0xf000);
+#ifdef BLACKPILL
+			pindrv->ops->control(pin_dh, GPIO_BUS_CLR_BITS, arg1,arg2);
+#else
 			pindrv->ops->control(pin_dh, GPIO_BUS_SET_BITS, arg1, arg2);
+#endif
 			break;
 		}
                 case LED_CTRL_DEACTIVATE: {
 			if (arg2<4) return -1;
-//			GPIOD->ODR&=~((*((unsigned int *)arg1))&0xf000);
+#ifdef BLACKPILL
+			pindrv->ops->control(pin_dh, GPIO_BUS_SET_BITS, arg1, arg2);
+#else
 			pindrv->ops->control(pin_dh, GPIO_BUS_CLR_BITS, arg1,arg2);
+#endif
 			break;
 		}
                 default:

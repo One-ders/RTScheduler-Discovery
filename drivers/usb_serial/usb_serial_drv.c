@@ -141,10 +141,18 @@ static const unsigned char device_descriptor[] = {
 	0,
 #endif
     0x40,   /* bMaxPacketSize0 */        // <-----------
+#ifdef USB_VENDOR
+	USB_VENDOR,
+#else
     0x48,
     0x25,   /* idVendor = 0x2548 */
+#endif
+#ifdef USB_PRODUCT
+	USB_PRODUCT,
+#else
     0x01,
     0x10,   /* idProduct = 0x1001 */
+#endif
     0x00,
     0x02,   /* bcdDevice = 2.00 */
     1,              /* Index of string descriptor describing manufacturer */
@@ -383,10 +391,13 @@ static const unsigned char Virtual_Com_Port_ConfigDescriptor[] =  {
 
 
 struct usb_data {
-	char tx_buf[TX_BSIZE];
+	char *tx_buf;
+	char tx_buf0[TX_BSIZE];
+	char tx_buf1[TX_BSIZE];
+	volatile int currbuf;
 	volatile int tx_in;
 	volatile int tx_out;
-	int txr;
+	volatile int txr;
 	char rx_buf[RX_BSIZE];
 	volatile int rx_in;
 	volatile int rx_out;
@@ -637,11 +648,23 @@ static unsigned int class_EP0_rx_ready(void *ud_v) {
 
 static unsigned int class_data_in(void *ud_v, unsigned char epnum) {
 	struct usb_data *ud=(struct usb_data *)ud_v;
+//	sys_printf("class_data_in: %x, epnum %d\n", ud_v, epnum);
 	if (ud->tx_in) {
 		int len=MIN(ud->tx_in,64);
-		usb_dev_tx(ud->core,0x82,((unsigned char *)ud->tx_buf),len);
+		unsigned char *buf=(unsigned char *)ud->tx_buf;
+//	        sys_printf("usb sw irq: cb %d\n",ud->currbuf);
+		if (ud->currbuf) {
+			ud->currbuf=0;
+			ud->tx_buf=ud->tx_buf0;
+		} else {
+			ud->currbuf=1;
+			ud->tx_buf=ud->tx_buf1;
+		}
 		ud->tx_in=ud->tx_out=0;
+		ud->txr=1;
+		usb_dev_tx(ud->core,0x82,buf,len);
 	} else {
+//	   sys_printf("usb dne\n");
 	   ud->txr=0;
 	}
 	wakeup_users(EV_WRITE);
@@ -656,10 +679,12 @@ static unsigned int class_data_out(void *ud_v, unsigned char epnum) {
 	int i;
 	rx_cnt=ud->core->dev.out_ep[epnum].xfer_count;
 	rx_buf[epnum][rx_cnt]=0;
+//	sys_printf("rec:%s\n",rx_buf[epnum]);
 
 	for(i=0;i<rx_cnt;i++) {
 		if ((usb_data0.rx_in-usb_data0.rx_out)>=RX_BSIZE) {
 			sys_printf("usb_serial: rx overrun\n");
+			break;
 		}
 
 		usb_data0.rx_buf[usb_data0.rx_in%RX_BSIZE]=rx_buf[epnum][i];
@@ -725,7 +750,7 @@ static void usr_dev_reset(unsigned char speed) {
 
 unsigned int tx_started;
 static void usr_dev_configured(void) {
-//	sys_printf("usb_serial: usb_dev_configured\n");
+//	sys_printf("usb_serial: usb_dev_configured, started\n");
 	tx_started=1;
 	class_data_in(&usb_data0, 0x82);
 }
@@ -880,12 +905,14 @@ static int usb_serial_read(struct user_data *ud, char *buf, int len) {
 				ud->ev_flags|=EV_READ;
 				return -DRV_AGAIN;
 			} else {
-				return i;
+				break;
+//				return i;
 			}
 		}
 		buf[i++]=usb_data->rx_buf[ix];
 		usb_data->rx_out++;
 	}
+	buf[i]=0;
 	return i;
 }
 
@@ -897,6 +924,7 @@ static int usb_serial_putc(struct user_data *ud, int c) {
 		restore_cpu_flags(cpu_flags);
 		return -DRV_AGAIN;
 	}
+//	sys_printf("usb write(%d): tx_in %d\n", usb_data->currbuf,usb_data->tx_in);
 	usb_data->tx_buf[IX(usb_data->tx_in)]=c;
 	usb_data->tx_in++;
 	restore_cpu_flags(cpu_flags);
@@ -904,9 +932,19 @@ static int usb_serial_putc(struct user_data *ud, int c) {
 	cpu_flags=disable_interrupts();
 	if(!usb_data->txr) {
 		int len=usb_data->tx_in;
+		unsigned char *buf=(unsigned char *)usb_data->tx_buf;
+//		sys_printf("in tx, currbuf %d:%s\n",usb_data->currbuf,buf);
+		if (usb_data->currbuf) {
+			usb_data->currbuf=0;
+			usb_data->tx_buf=usb_data->tx_buf0;
+		} else {
+			usb_data->currbuf=1;
+			usb_data->tx_buf=usb_data->tx_buf1;
+		}
 		usb_data->tx_in=0;
 		usb_data->txr=1;
-		usb_dev_tx(usb_data->core,0x82,((unsigned char *)usb_data->tx_buf),len);
+		buf[len]=0;
+		usb_dev_tx(usb_data->core,0x82,buf,len);
 	}
 	restore_cpu_flags(cpu_flags);
 	return 1;
@@ -915,9 +953,12 @@ static int usb_serial_putc(struct user_data *ud, int c) {
 static int usb_serial_write(struct user_data *ud, char *buf, int len) {
 	int i;
 	int rc;
+
 	for(i=0;i<len;i++) {
 		if ((rc=usb_serial_putc(ud,buf[i]))<0) {
-			if (!i) return rc;
+			if (!i) {
+				return rc;
+			}
 			return i;
 		}
 	}
@@ -995,6 +1036,9 @@ static int usb_serial_init(void *instance) {
 
 static int usb_serial_start(void *instance) {
 	struct usb_data *ud=(struct usb_data *)instance;
+
+	ud->currbuf=0;
+	ud->tx_buf=ud->tx_buf0;
 
 //	ud->core=&USB_OTG_dev;
 	usbd_init(&ud->core,

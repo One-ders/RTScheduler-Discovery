@@ -1,13 +1,10 @@
 
-ODIR=$(OBJ)/arch/stm32/stm32f411
+ODIR=$(OBJ)/arch/stm32/usart
 
-OUT=$(ODIR)/stm32f411.o
+OUT=$(ODIR)/usart.o
 
 OBJECTS= \
-	$(ODIR)/startup_stm32f4xx.s \
-	$(ODIR)/iwdg_drv.o \
-	$(ODIR)/startup.o \
-	$(ODIR)/led_drv.o
+	$(ODIR)/usart_drv.o
 
 all: $(ODIR) $(OUT)
 

@@ -1,6 +1,7 @@
 
 DRIVERS+=stddrv.o
 DRIVERS+=gpio_drv.o
+DRIVERS+=usart_drv.o
 DRIVERS+=usb_core_drv.o
 DRIVERS+=usb_serial_drv.o
 DRIVERS+=hr_timer.o
@@ -87,6 +88,7 @@ stm32f407: stm32 $(OBJ)/arch/stm32/stm32f407/stm32f407.o
 stm32f42xxx: stm32 $(OBJ)/arch/stm32/stm32f42xxx
 usb_core_drv: $(OBJ)/drv_obj/usb_core_drv.o
 gpio_drv: $(OBJ)/drv_obj/gpio_drv.o
+usart_drv: $(OBJ)/drv_obj/usart_drv.o
 hr_timer: $(OBJ)/drv_obj/hr_timer.o
 i2c_drv: $(OBJ)/drv_obj/i2c_drv.o
 tsc_drv: $(OBJ)/drv_obj/tsc_drv.o
@@ -213,6 +215,16 @@ $(OBJ)/arch/stm32/gpio: $(TOP)/arch/stm32/gpio
 	mkdir -p $@
 	lndir $< $@
 
+$(OBJ)/drv_obj/usart_drv.o: stm32f407 $(OBJ)/arch/stm32/usart/usart_drv.o
+	mkdir -p $(OBJ)/drv_obj
+	cp  $(OBJ)/arch/stm32/usart/usart_drv.o $@
+
+$(OBJ)/arch/stm32/usart/usart_drv.o: $(OBJ)/arch/stm32/usart
+	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
+
+$(OBJ)/arch/stm32/usart: $(TOP)/arch/stm32/usart
+	mkdir -p $@
+	lndir $< $@
 
 $(OBJ)/drv_obj/hr_timer.o: stm32f407 $(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o
 	mkdir -p $(OBJ)/drv_obj

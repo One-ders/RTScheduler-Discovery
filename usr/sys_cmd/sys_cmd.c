@@ -1,4 +1,4 @@
-/* $realOs: , v1.1 2014/04/07 21:44:00 anders Exp $ */
+/* $RTOs: , v1.1 2014/04/07 21:44:00 anders Exp $ */
 
 /*
  * Copyright (c) 2014, Anders Franzen.
@@ -344,9 +344,12 @@ static int dump_log_fnc(int argc, char **argv, struct Env *env) {
 	return 0;
 }
 
+#define MAX(a,b) (a<b)?b:a
+
 static int cat_fnc(int argc, char **argv, struct Env *env) {
 	int fd;
 	int ok=0;
+	int maxfd;
 	char buf[256];
 
 	buf[0]=0;
@@ -362,28 +365,57 @@ static int cat_fnc(int argc, char **argv, struct Env *env) {
 		return -1;
 	}
 
+	maxfd=MAX(fd,env->io_fd);
 	while(1) {
-		ok=io_read(fd,buf,sizeof(buf));
-		if (ok) {
-			if (buf[0]==0x04) {
-				fprintf(env->io_fd, "Control D");
-				break;
-			}
-			buf[ok]=0;
-			if (buf[strlen(buf)-1]== '\n') {
-				char *p=&buf[strlen(buf)];
-				*p='\r';
-				p++;
-				*p=0;
-				fprintf(env->io_fd, "got linefeed");
-			}
-			fprintf(env->io_fd, "%s",buf);
-		} else {
-			break;
+		int rc;
+		fd_set rfds;
+
+		FD_ZERO(&rfds);
+		FD_SET(fd,&rfds);
+		FD_SET(env->io_fd,&rfds);
+
+		rc=io_select(maxfd+1,&rfds,0,0,0);
+		if (rc<0) {
+			fprintf(env->io_fd, "error from select: %d\n",rc);
+			continue;
 		}
 
-	}
+//	 	fprintf(env->io_fd,"got %d from select\n",rc);
+		if (FD_ISSET(env->io_fd,&rfds)) {
+//	 		fprintf(env->io_fd,"user console io ready\n",rc);
+			ok=io_read(env->io_fd,buf,1);
+			if (ok) {
+				if (buf[0]==0x03) {
+					fprintf(fd, "Control C");
+					break;
+				}
+			} else {
+				break;
+			}
+		}
 
+		if (FD_ISSET(fd,&rfds)) {
+//	 		fprintf(env->io_fd,"catted dev io ready\n",rc);
+			ok=io_read(fd,buf,1);
+			if (ok) {
+				if (buf[0]==0x04) {
+					fprintf(env->io_fd, "Control D");
+					break;
+				}
+				buf[ok]=0;
+				if (buf[strlen(buf)-1]== '\n') {
+					char *p=&buf[strlen(buf)];
+					*p='\r';
+					p++;
+					*p=0;
+					fprintf(env->io_fd, "got linefeed");
+				}
+				fprintf(env->io_fd, "%s",buf);
+			} else {
+				break;
+			}
+		}
+	}
 
 	io_close(fd);
 
@@ -460,7 +492,6 @@ void main(void *dum) {
 	if (!u_init) {
 		u_init=1;
 		install_cmd_node(&my_cmd_node,0);
-//		init_blinky();
 #ifdef TEST_USB_SERIAL
 		thread_create(main,"usb_serial0",12,1,"sys_mon:usb");
 #endif
@@ -486,7 +517,6 @@ void main(void *dum) {
 			cmd=lookup_cmd(argv[0],fd);
 			if (cmd) {
 				int rc;
-//				fprintf(fd,":iofd is %d\n",env.io_fd);
 				fprintf(fd,"\n");
 				rc=cmd->fnc(argc,argv,&env);
 				if (rc<0) {

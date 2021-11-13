@@ -50,22 +50,22 @@ struct task *volatile current = &main_task;
 struct task *t_array[MAX_TASKS];
 
 void init_task_list() {
-        int i;
-        for(i=0;i<MAX_TASKS-1;i++) {
-                t_array[i]=0;
-        }
+	int i;
+	for(i=0;i<MAX_TASKS-1;i++) {
+		t_array[i]=0;
+	}
 }
 
 int allocate_task_id(struct task *t) {
-        int i;
-        for(i=0;i<MAX_TASKS-1;i++) {
-                if (!t_array[i]) {
-                        t_array[i]=t;
-                        t->id=i;
-                        return i;
-                }
-        }
-        return -1;
+	int i;
+	for(i=0;i<MAX_TASKS-1;i++) {
+		if (!t_array[i]) {
+			t_array[i]=t;
+			t->id=i;
+			return i;
+		}
+	}
+	return -1;
 }
 
 struct task *lookup_task_for_name(char *task_name) {

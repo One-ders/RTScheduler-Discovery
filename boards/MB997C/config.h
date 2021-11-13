@@ -5,7 +5,7 @@
 #define MAX_TASKS	256
 #define TQ_SIZE         1024
 
-#define USB_TX_BSIZE    64
+#define USB_TX_BSIZE    128   // Lower Tx crashes system during boot if all usb
 #define USB_RX_BSIZE	512
 
 #define USART_TX_BSIZE	1024
@@ -35,8 +35,16 @@
 #define USB_OC		GPIO_PIN(PD,5)
 #endif
 
+// define Vendor and product to pulse eight for backward comp.
+// the linux ACM driver will add an echo to what it thinks is
+// an extern monitor :(
+#define USB_VENDOR	0x48,0x25
+#define USB_PRODUCT	0x01,0x10
+
 #define SYS_CONSOLE_DEV		"usart0"
-#define USER_CONSOLE_DEV	"usart0"
+//#define USER_CONSOLE_DEV	"usart0"
+//#define SYS_CONSOLE_DEV		"usb_serial0"
+#define USER_CONSOLE_DEV	"usb_serial0"
 
 /* User leds */
 #define USER_LEDS	4

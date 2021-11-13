@@ -5,7 +5,6 @@ OUT=$(ODIR)/stm32f407.o
 
 OBJECTS= \
 	$(ODIR)/startup_stm32f4xx.s \
-	$(ODIR)/usart_drv.o \
 	$(ODIR)/iwdg_drv.o \
 	$(ODIR)/extmem_drv.o \
 	$(ODIR)/startup.o \
