@@ -8,13 +8,11 @@
 
 #ifdef MB1075B
 
-static struct device_handle my_dh;
-
 extern struct driver_ops gpio_drv_ops;
 
 static int fmc_sram_open(void *instance, DRV_CBH cb_handler, void *dum) {
 	return -1;
-} 
+}
 
 static int fmc_sram_control(struct device_handle *dh, int cmd, void *arg1, int arg2) {
 	return -1;
@@ -67,10 +65,18 @@ static int fmc_sram_start(void *inst) {
 // SDRC1 0,1 or 2 -> v<<13
 #define ReadPipeDelay		1
 
+#define PORT(a) ((a>>4)&0xf)
+#define PIN(a) (a&0xf)
+
 static int fmc_sram_init(void *inst) {
-	struct device_handle *gpio_dh;
+	struct device_handle *gpiob_dh;
+	struct device_handle *gpioc_dh;
+	struct device_handle *gpiod_dh;
+	struct device_handle *gpioe_dh;
+	struct device_handle *gpiof_dh;
+	struct device_handle *gpiog_dh;
 //	struct driver *gpio_drv;
-	struct pin_spec ps[38];
+	struct pin_spec ps[GPIO_PG+1];
 	int rc;
 	unsigned int tmpreg;
 	unsigned int tout;
@@ -81,7 +87,12 @@ static int fmc_sram_init(void *inst) {
 
 	gpio_drv_ops.init(0);
 
-	gpio_dh=gpio_drv_ops.open(0,0,0);
+	gpiob_dh=gpio_drv_ops.open(0,0,0);
+	gpioc_dh=gpio_drv_ops.open(0,0,0);
+	gpiod_dh=gpio_drv_ops.open(0,0,0);
+	gpioe_dh=gpio_drv_ops.open(0,0,0);
+	gpiof_dh=gpio_drv_ops.open(0,0,0);
+	gpiog_dh=gpio_drv_ops.open(0,0,0);
 
 	flags=GPIO_DIR(0,GPIO_ALTFN_PIN);
 //	flags=GPIO_SPEED(flags,GPIO_SPEED_HIGH);
@@ -89,90 +100,122 @@ static int fmc_sram_init(void *inst) {
 	flags=GPIO_DRIVE(flags,GPIO_PUSHPULL);
 	flags=GPIO_ALTFN(flags,0xc);
 
-	ps[0].pin=FMC_A0;
-	ps[0].flags=flags;
-	ps[1].pin=FMC_A1;
-	ps[1].flags=flags;
-	ps[2].pin=FMC_A2;
-	ps[2].flags=flags;
-	ps[3].pin=FMC_A3;
-	ps[3].flags=flags;
-	ps[4].pin=FMC_A4;
-	ps[4].flags=flags;
-	ps[5].pin=FMC_A5;
-	ps[5].flags=flags;
-	ps[6].pin=FMC_A6;
-	ps[6].flags=flags;
-	ps[7].pin=FMC_A7;
-	ps[7].flags=flags;
-	ps[8].pin=FMC_A8;
-	ps[8].flags=flags;
-	ps[9].pin=FMC_A9;
-	ps[9].flags=flags;
-	ps[10].pin=FMC_A10;
-	ps[10].flags=flags;
-	ps[11].pin=FMC_A11;
-	ps[11].flags=flags;
-	/*********************/
-	ps[12].pin=FMC_D0;
-	ps[12].flags=flags;
-	ps[13].pin=FMC_D1;
-	ps[13].flags=flags;
-	ps[14].pin=FMC_D2;
-	ps[14].flags=flags;
-	ps[15].pin=FMC_D3;
-	ps[15].flags=flags;
-	ps[16].pin=FMC_D4;
-	ps[16].flags=flags;
-	ps[17].pin=FMC_D5;
-	ps[17].flags=flags;
-	ps[18].pin=FMC_D6;
-	ps[18].flags=flags;
-	ps[19].pin=FMC_D7;
-	ps[19].flags=flags;
-	ps[20].pin=FMC_D8;
-	ps[20].flags=flags;
-	ps[21].pin=FMC_D9;
-	ps[21].flags=flags;
-	ps[22].pin=FMC_D10;
-	ps[22].flags=flags;
-	ps[23].pin=FMC_D11;
-	ps[23].flags=flags;
-	ps[24].pin=FMC_D12;
-	ps[24].flags=flags;
-	ps[25].pin=FMC_D13;
-	ps[25].flags=flags;
-	ps[26].pin=FMC_D14;
-	ps[26].flags=flags;
-	ps[27].pin=FMC_D15;
-	ps[27].flags=flags;
-	/**************************/
-	ps[28].pin=FMC_BA0;
-	ps[28].flags=flags;
-	ps[29].pin=FMC_BA1;
-	ps[29].flags=flags;
-	ps[30].pin=FMC_NBL0;
-	ps[30].flags=flags;
-	ps[31].pin=FMC_NBL1;
-	ps[31].flags=flags;
-	ps[32].pin=FMC_SDCLK;
-	ps[32].flags=flags;
-	ps[33].pin=FMC_SDNWE;
-	ps[33].flags=flags;
-	ps[34].pin=FMC_SDNRAS;
-	ps[34].flags=flags;
-	ps[35].pin=FMC_SDNCAS;
-	ps[35].flags=flags;
-	ps[36].pin=FMC_SDNE1;
-	ps[36].flags=flags;
-	ps[37].pin=FMC_SDCKE1;
-	ps[37].flags=flags;
+	ps[GPIO_PB].port=GPIO_PB;
+	ps[GPIO_PB].flags=flags;
+	ps[GPIO_PB].pins=0;
 
-	rc=gpio_drv_ops.control(gpio_dh,GPIO_BUS_ASSIGN_PINS,ps,sizeof(ps));
-	if (rc<0) return -1;
+	ps[GPIO_PC].port=GPIO_PC;
+	ps[GPIO_PC].flags=flags;
+	ps[GPIO_PC].pins=0;
+
+	ps[GPIO_PD].port=GPIO_PD;
+	ps[GPIO_PD].flags=flags;
+	ps[GPIO_PD].pins=0;
+
+	ps[GPIO_PE].port=GPIO_PE;
+	ps[GPIO_PE].flags=flags;
+	ps[GPIO_PE].pins=0;
+
+	ps[GPIO_PF].port=GPIO_PF;
+	ps[GPIO_PF].flags=flags;
+	ps[GPIO_PF].pins=0;
+
+	ps[GPIO_PG].port=GPIO_PG;
+	ps[GPIO_PG].flags=flags;
+	ps[GPIO_PG].pins=0;
+
+
+// Port F
+	ps[PORT(FMC_A0)].pins|=(1<<PIN(FMC_A0));
+	ps[PORT(FMC_A1)].pins|=(1<<PIN(FMC_A1));
+	ps[PORT(FMC_A2)].pins|=(1<<PIN(FMC_A2));
+	ps[PORT(FMC_A3)].pins|=(1<<PIN(FMC_A3));
+	ps[PORT(FMC_A4)].pins|=(1<<PIN(FMC_A4));
+	ps[PORT(FMC_A5)].pins|=(1<<PIN(FMC_A5));
+	ps[PORT(FMC_A6)].pins|=(1<<PIN(FMC_A6));
+	ps[PORT(FMC_A7)].pins|=(1<<PIN(FMC_A7));
+	ps[PORT(FMC_A8)].pins|=(1<<PIN(FMC_A8));
+	ps[PORT(FMC_A9)].pins|=(1<<PIN(FMC_A9));
+//---
+//	Port G
+	ps[PORT(FMC_A10)].pins|=(1<<PIN(FMC_A10));
+	ps[PORT(FMC_A11)].pins|=(1<<PIN(FMC_A11));
+	ps[PORT(FMC_BA0)].pins|=(1<<PIN(FMC_BA0));
+	ps[PORT(FMC_BA1)].pins|=(1<<PIN(FMC_BA1));
+	/*********************/
+//	Port D
+	ps[PORT(FMC_D0)].pins|=(1<<PIN(FMC_D0));
+	ps[PORT(FMC_D1)].pins|=(1<<PIN(FMC_D1));
+	ps[PORT(FMC_D2)].pins|=(1<<PIN(FMC_D2));
+	ps[PORT(FMC_D3)].pins|=(1<<PIN(FMC_D3));
+//	Port E
+	ps[PORT(FMC_D4)].pins|=(1<<PIN(FMC_D4));
+	ps[PORT(FMC_D5)].pins|=(1<<PIN(FMC_D5));
+	ps[PORT(FMC_D6)].pins|=(1<<PIN(FMC_D6));
+	ps[PORT(FMC_D7)].pins|=(1<<PIN(FMC_D7));
+	ps[PORT(FMC_D8)].pins|=(1<<PIN(FMC_D8));
+	ps[PORT(FMC_D9)].pins|=(1<<PIN(FMC_D9));
+	ps[PORT(FMC_D10)].pins|=(1<<PIN(FMC_D10));
+	ps[PORT(FMC_D11)].pins|=(1<<PIN(FMC_D11));
+	ps[PORT(FMC_D12)].pins|=(1<<PIN(FMC_D12));
+//	Port D
+	ps[PORT(FMC_D13)].pins|=(1<<PIN(FMC_D13));
+	ps[PORT(FMC_D14)].pins|=(1<<PIN(FMC_D14));
+	ps[PORT(FMC_D15)].pins|=(1<<PIN(FMC_D15));
+	/**************************/
+// 	Port E
+	ps[PORT(FMC_NBL0)].pins|=(1<<PIN(FMC_NBL0));
+	ps[PORT(FMC_NBL1)].pins|=(1<<PIN(FMC_NBL1));
+//	Port G
+	ps[PORT(FMC_SDCLK)].pins|=(1<<PIN(FMC_SDCLK));
+//	Port C
+	ps[PORT(FMC_SDNWE)].pins|=(1<<PIN(FMC_SDNWE));
+//	Port F
+	ps[PORT(FMC_SDNRAS)].pins|=(1<<PIN(FMC_SDNRAS));
+//	Port G
+	ps[PORT(FMC_SDNCAS)].pins|=(1<<PIN(FMC_SDNCAS));
+//	Port B
+	ps[PORT(FMC_SDNE1)].pins|=(1<<PIN(FMC_SDNE1));
+	ps[PORT(FMC_SDCKE1)].pins|=(1<<PIN(FMC_SDCKE1));
+
+	rc=gpio_drv_ops.control(gpiob_dh,GPIO_BUS_ASSIGN_PINS,&ps[GPIO_PB],sizeof(struct pin_spec));
+	if (rc<0) {
+		sys_printf("extmem; failed to assign port B\n");
+		return -1;
+	}
+
+	rc=gpio_drv_ops.control(gpioc_dh,GPIO_BUS_ASSIGN_PINS,&ps[GPIO_PC],sizeof(struct pin_spec));
+	if (rc<0) {
+		sys_printf("extmem; failed to assign port C\n");
+		return -1;
+	}
+
+	rc=gpio_drv_ops.control(gpiod_dh,GPIO_BUS_ASSIGN_PINS,&ps[GPIO_PD],sizeof(struct pin_spec));
+	if (rc<0) {
+		sys_printf("extmem; failed to assign port D\n");
+		return -1;
+	}
+
+	rc=gpio_drv_ops.control(gpioe_dh,GPIO_BUS_ASSIGN_PINS,&ps[GPIO_PE],sizeof(struct pin_spec));
+	if (rc<0) {
+		sys_printf("extmem; failed to assign port E\n");
+		return -1;
+	}
+
+	rc=gpio_drv_ops.control(gpiof_dh,GPIO_BUS_ASSIGN_PINS,&ps[GPIO_PF],sizeof(struct pin_spec));
+	if (rc<0) {
+		sys_printf("extmem; failed to assign port F\n");
+		return -1;
+	}
+
+	rc=gpio_drv_ops.control(gpiog_dh,GPIO_BUS_ASSIGN_PINS,&ps[GPIO_PG],sizeof(struct pin_spec));
+	if (rc<0) {
+		sys_printf("extmem; failed to assign port G\n");
+		return -1;
+	}
 
 	/* */
-	RCC->AHB3ENR |= RCC_AHB3ENR_FMCEN;	
+	RCC->AHB3ENR |= RCC_AHB3ENR_FMCEN;
 	sys_udelay(100);
 
 	/* Config and enable SDRAM bank1 */
@@ -262,7 +305,7 @@ static int fmc_sram_init(void *inst) {
 	while(tmpreg&&(tout--)) {
 		tmpreg=FMC->SDSR&FMC_SDSR_BUSY;
 	}
-	
+
 //	FMC->SDRTR|=(0x27c<<FMC_SDRTR_COUNT_SHIFT);
 	FMC->SDRTR=(0x56a<<FMC_SDRTR_COUNT_SHIFT);
 

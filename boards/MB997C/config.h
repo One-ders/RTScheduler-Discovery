@@ -11,8 +11,6 @@
 #define USART_TX_BSIZE	1024
 #define USART_RX_BSIZE	16
 
-#define GPIO_PINMEM	256
-
 /* define board */
 #define MB997C
 
@@ -22,17 +20,17 @@
 
 /* Usart */
 #define USE_USART	3
-#define USART_TX_PIN	GPIO_PIN(PC,10)
-#define USART_RX_PIN	GPIO_PIN(PC,11)
+#define USART_TX_PIN	GPIO_PIN(GPIO_PC,10)
+#define USART_RX_PIN	GPIO_PIN(GPIO_PC,11)
 
 /* Usb */
-#define USB_VBUS	GPIO_PIN(PA,9)
-#define USB_ID		GPIO_PIN(PA,10)
-#define USB_DM		GPIO_PIN(PA,11)
-#define USB_DP		GPIO_PIN(PA,12)
+#define USB_VBUS	GPIO_PIN(GPIO_PA,9)
+#define USB_ID		GPIO_PIN(GPIO_PA,10)
+#define USB_DM		GPIO_PIN(GPIO_PA,11)
+#define USB_DP		GPIO_PIN(GPIO_PA,12)
 #if 0
-#define USB_PO		GPIO_PIN(PC,0)
-#define USB_OC		GPIO_PIN(PD,5)
+#define USB_PO		GPIO_PIN(GPIO_PC,0)
+#define USB_OC		GPIO_PIN(GPIO_PD,5)
 #endif
 
 // define Vendor and product to pulse eight for backward comp.
@@ -42,13 +40,15 @@
 #define USB_PRODUCT	0x01,0x10
 
 #define SYS_CONSOLE_DEV		"usart0"
-//#define USER_CONSOLE_DEV	"usart0"
+#define USER_CONSOLE_DEV	"usart0"
 //#define SYS_CONSOLE_DEV		"usb_serial0"
-#define USER_CONSOLE_DEV	"usb_serial0"
+//#define USER_CONSOLE_DEV	"usb_serial0"
 
-/* User leds */
+/* Macros defined by LED drv.
+ * User leds */
 #define USER_LEDS	4
-#define LED_PINS 	(GPIO_PIN(PD,13) | (GPIO_PIN(PD,12)<<8) | (GPIO_PIN(PD,14)<<16) | (GPIO_PIN(PD,15)<<24))
+#define LED_PORT	GPIO_PD
+#define LED_PORT_PINS 	(13 | (12<<4) | (14<<8) | (15<<12))
 #define LED_AMBER 	1
 #define LED_GREEN	2
 #define LED_RED		4
@@ -57,19 +57,19 @@
 
 #if 0
 /* Cec */
-#define CEC_PIN         GPIO_PIN(PC,4)
+#define CEC_PIN         GPIO_PIN(GPIO_PC,4)
 
 /* Sony A1 */
 // previous use of PB0 changed, because of burned gpio pin
-#define A1_PIN          GPIO_PIN(PC,5)
+#define A1_PIN          GPIO_PIN(GPIO_PC,5)
 
 // OBD1 GM ALDL
-#define OBD160_PIN          GPIO_PIN(PC,5)
+#define OBD160_PIN          GPIO_PIN(GPIO_PC,5)
 
 /* Timer 1 Ch1 & Ch 2, AF1 */
-#define TIM1_CH1_PIN	GPIO_PIN(PE,9)
-#define TIM1_CH2_PIN	GPIO_PIN(PE,11)
+#define TIM1_CH1_PIN	GPIO_PIN(GPIO_PE,9)
+#define TIM1_CH2_PIN	GPIO_PIN(GPIO_PE,11)
 
 /* Timer 8 ch1, AF3 */
-#define TIM8_CH1_PIN	GPIO_PIN(PC,6)
+#define TIM8_CH1_PIN	GPIO_PIN(GPIO_PC,6)
 #endif

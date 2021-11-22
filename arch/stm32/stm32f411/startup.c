@@ -86,6 +86,8 @@ void clk_init(void) {
 // 	VCO clk = 25x(336/25)=336
 // 	PLL clk = 336/4 = 84 Mhz
 // PLLQ = 7  ---> 48 Mhz for usb
+//
+// Other possible comb. is PPM 25, PLLN 192, PLLP 0 (2), PLLQ=4
 	RCC->PLLCFGR=(RCC->PLLCFGR&0xffbf8000)|0x405419;
 	RCC->PLLCFGR=(RCC->PLLCFGR&~0x30000)|0x10000; // pllp=01
 

@@ -7,8 +7,7 @@ OBJECTS= \
 	$(ODIR)/startup_stm32f4xx.s \
 	$(ODIR)/iwdg_drv.o \
 	$(ODIR)/extmem_drv.o \
-	$(ODIR)/startup.o \
-	$(ODIR)/led_drv.o
+	$(ODIR)/startup.o
 
 all: $(ODIR) $(OUT)
 

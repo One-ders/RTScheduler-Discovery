@@ -12,8 +12,6 @@
 #define USART_TX_BSIZE  1024
 #define USART_RX_BSIZE	16
 
-#define GPIO_PINMEM	256
-
 /* define board */
 #define MB1075B
 
@@ -36,47 +34,47 @@
 #define SDRAM_RCD_DELAY			2
 
 /* SDRAM Pins */
-#define FMC_A0  GPIO_PIN(PF,0)
-#define FMC_A1  GPIO_PIN(PF,1)
-#define FMC_A2  GPIO_PIN(PF,2)
-#define FMC_A3  GPIO_PIN(PF,3)
-#define FMC_A4  GPIO_PIN(PF,4)
-#define FMC_A5  GPIO_PIN(PF,5)
-#define FMC_A6  GPIO_PIN(PF,12)
-#define FMC_A7  GPIO_PIN(PF,13)
-#define FMC_A8  GPIO_PIN(PF,14)
-#define FMC_A9  GPIO_PIN(PF,15)
-#define FMC_A10 GPIO_PIN(PG,0)
-#define FMC_A11 GPIO_PIN(PG,1)
+#define FMC_A0  GPIO_PIN(GPIO_PF,0)
+#define FMC_A1  GPIO_PIN(GPIO_PF,1)
+#define FMC_A2  GPIO_PIN(GPIO_PF,2)
+#define FMC_A3  GPIO_PIN(GPIO_PF,3)
+#define FMC_A4  GPIO_PIN(GPIO_PF,4)
+#define FMC_A5  GPIO_PIN(GPIO_PF,5)
+#define FMC_A6  GPIO_PIN(GPIO_PF,12)
+#define FMC_A7  GPIO_PIN(GPIO_PF,13)
+#define FMC_A8  GPIO_PIN(GPIO_PF,14)
+#define FMC_A9  GPIO_PIN(GPIO_PF,15)
+#define FMC_A10 GPIO_PIN(GPIO_PG,0)
+#define FMC_A11 GPIO_PIN(GPIO_PG,1)
 
-#define FMC_BA0 GPIO_PIN(PG,4)
-#define FMC_BA1 GPIO_PIN(PG,5)
+#define FMC_BA0 GPIO_PIN(GPIO_PG,4)
+#define FMC_BA1 GPIO_PIN(GPIO_PG,5)
 
-#define FMC_D0  GPIO_PIN(PD,14)
-#define FMC_D1  GPIO_PIN(PD,15)
-#define FMC_D2  GPIO_PIN(PD,0)
-#define FMC_D3  GPIO_PIN(PD,1)
-#define FMC_D4  GPIO_PIN(PE,7)
-#define FMC_D5  GPIO_PIN(PE,8)
-#define FMC_D6  GPIO_PIN(PE,9)
-#define FMC_D7  GPIO_PIN(PE,10)
-#define FMC_D8  GPIO_PIN(PE,11)
-#define FMC_D9  GPIO_PIN(PE,12)
-#define FMC_D10 GPIO_PIN(PE,13)
-#define FMC_D11 GPIO_PIN(PE,14)
-#define FMC_D12 GPIO_PIN(PE,15)
-#define FMC_D13 GPIO_PIN(PD,8)
-#define FMC_D14 GPIO_PIN(PD,9)
-#define FMC_D15 GPIO_PIN(PD,10)
+#define FMC_D0  GPIO_PIN(GPIO_PD,14)
+#define FMC_D1  GPIO_PIN(GPIO_PD,15)
+#define FMC_D2  GPIO_PIN(GPIO_PD,0)
+#define FMC_D3  GPIO_PIN(GPIO_PD,1)
+#define FMC_D4  GPIO_PIN(GPIO_PE,7)
+#define FMC_D5  GPIO_PIN(GPIO_PE,8)
+#define FMC_D6  GPIO_PIN(GPIO_PE,9)
+#define FMC_D7  GPIO_PIN(GPIO_PE,10)
+#define FMC_D8  GPIO_PIN(GPIO_PE,11)
+#define FMC_D9  GPIO_PIN(GPIO_PE,12)
+#define FMC_D10 GPIO_PIN(GPIO_PE,13)
+#define FMC_D11 GPIO_PIN(GPIO_PE,14)
+#define FMC_D12 GPIO_PIN(GPIO_PE,15)
+#define FMC_D13 GPIO_PIN(GPIO_PD,8)
+#define FMC_D14 GPIO_PIN(GPIO_PD,9)
+#define FMC_D15 GPIO_PIN(GPIO_PD,10)
 
-#define FMC_NBL0 GPIO_PIN(PE,0)
-#define FMC_NBL1 GPIO_PIN(PE,1)
-#define FMC_SDCLK  GPIO_PIN(PG,8)
-#define FMC_SDNWE  GPIO_PIN(PC,0)
-#define FMC_SDNRAS GPIO_PIN(PF,11)
-#define FMC_SDNCAS GPIO_PIN(PG,15)
-#define FMC_SDNE1  GPIO_PIN(PB,6)
-#define FMC_SDCKE1 GPIO_PIN(PB,5)
+#define FMC_NBL0 GPIO_PIN(GPIO_PE,0)
+#define FMC_NBL1 GPIO_PIN(GPIO_PE,1)
+#define FMC_SDCLK  GPIO_PIN(GPIO_PG,8)
+#define FMC_SDNWE  GPIO_PIN(GPIO_PC,0)
+#define FMC_SDNRAS GPIO_PIN(GPIO_PF,11)
+#define FMC_SDNCAS GPIO_PIN(GPIO_PG,15)
+#define FMC_SDNE1  GPIO_PIN(GPIO_PB,6)
+#define FMC_SDCKE1 GPIO_PIN(GPIO_PB,5)
 
 #if 0
 
@@ -143,38 +141,41 @@
 #endif
 
 #define SYS_CONSOLE_DEV		"usart0"
-#define USER_CONSOLE_DEV	"usart0"
+//#define USER_CONSOLE_DEV	"usart0"
+#define USER_CONSOLE_DEV	"usb_serial0"
 
 #define USB_VENDOR	0x24,0x04
 #define USB_PRODUCT	0x4e,0x27
 
-/* User Leds */
+/* Macros defined by the LED drv
+ * User Leds */
 #define USER_LEDS	2
-#define LED_PINS	(GPIO_PIN(PG,13)|(GPIO_PIN(PG,14)<<8))
+#define LED_PORT	GPIO_PG
+#define LED_PORT_PINS	(13|(14<<4))
 #define LED_GREEN	1
 #define LED_RED  	2
 
 /* Usart*/
 #define USE_USART	1
-#define USART_TX_PIN	GPIO_PIN(PA,9)
-#define USART_RX_PIN	GPIO_PIN(PA,10)
+#define USART_TX_PIN	GPIO_PIN(GPIO_PA,9)
+#define USART_RX_PIN	GPIO_PIN(GPIO_PA,10)
 
 /* Usb */
-#define USB_ID		GPIO_PIN(PB,12)
-#define USB_VBUS	GPIO_PIN(PB,13)
-#define USB_DM		GPIO_PIN(PB,14)
-#define USB_DP		GPIO_PIN(PB,15)
+#define USB_ID		GPIO_PIN(GPIO_PB,12)
+#define USB_VBUS	GPIO_PIN(GPIO_PB,13)
+#define USB_DM		GPIO_PIN(GPIO_PB,14)
+#define USB_DP		GPIO_PIN(GPIO_PB,15)
 #if 0
-#define USB_PSO		GPIO_PIN(PC,4)
-#define USB_QC		GPIO_PIN(PC,5)
+#define USB_PSO		GPIO_PIN(GPIO_PC,4)
+#define USB_QC		GPIO_PIN(GPIO_PC,5)
 
 /* Cec */
 #if 1
-#define CEC_PIN		GPIO_PIN(PC,3);
+#define CEC_PIN		GPIO_PIN(GPIO_PC,3);
 #else
-#define CEC_PIN		GPIO_PIN(PB,7);
+#define CEC_PIN		GPIO_PIN(GPIO_PB,7);
 #endif
 
 /* Sony A1 */
-#define A1_PIN		GPIO_PIN(PB,4);
+#define A1_PIN		GPIO_PIN(GPIO_PB,4);
 #endif

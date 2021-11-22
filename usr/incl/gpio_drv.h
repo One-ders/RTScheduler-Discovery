@@ -35,17 +35,21 @@
 #define GPIO_BIND_PIN			0x1001
 #define GPIO_UNBIND_PIN			0x1002
 #define GPIO_GET_BOUND_PIN		0x1003
-#define PA				0x00
-#define PB				0x10
-#define PC				0x20
-#define PD				0x30
-#define PE				0x40
-#define PF				0x50
-#define PG				0x60
-#define PH				0x70
-#define PI				0x80
+#define GPIO_PA				0x0
+#define GPIO_PB				0x1
+#define GPIO_PC				0x2
+#define GPIO_PD				0x3
+#define GPIO_PE				0x4
+#if defined(MB997C) || defined(MB1075B)
+#define GPIO_PF				0x5
+#define GPIO_PG				0x6
+#endif
+#define GPIO_PH				0x7
+#if defined(MB997C) || defined(MB1075B)
+#define GPIO_PI				0x8
+#endif
 
-#define GPIO_PIN(a,b)			(a|b)
+#define GPIO_PIN(a,b)			((a<<4)|b)
 
 #define GPIO_SET_FLAGS			0x1004
 #define GPIO_CLR_FLAGS			0x1005
@@ -93,12 +97,15 @@
 #define GPIO_RELEASE_PIN		0x1010
 #define GPIO_BUS_ASSIGN_PINS		0x1011
 #define GPIO_BUS_DEASSIGN_PINS		0x1012
-#define GPIO_BUS_READ_BITS		0x1013
-#define GPIO_BUS_SET_BITS		0x1014
-#define GPIO_BUS_CLR_BITS		0x1015
+#define GPIO_BUS_READ_BUS		0x1013
+#define GPIO_BUS_READ_BITS		GPIO_BUS_READ_BUS
+#define GPIO_BUS_WRITE_BUS		0x1014
+#define GPIO_BUS_SET_BITS		0x1015
+#define GPIO_BUS_CLR_BITS		0x1016
 
 struct pin_spec {
-	unsigned short int pin;
+	unsigned short int port;
+	unsigned short int pins;
 	unsigned short int flags;
 };
 

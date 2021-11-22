@@ -128,8 +128,8 @@ static int tsc_init(void *instance) {
 static int tsc_start(void *instance) {
 	int rc;
 	unsigned int flags;
-	int i2c3_sda=GPIO_PIN(PC,9);
-	int i2c3_scl=GPIO_PIN(PA,8);
+	int i2c3_sda=GPIO_PIN(GPIO_PC,9);
+	int i2c3_scl=GPIO_PIN(GPIO_PA,8);
 	sys_printf("tsc driver start called\n");
 
 	/* connect tsc to i2c inputs */

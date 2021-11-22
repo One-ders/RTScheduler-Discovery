@@ -13,8 +13,6 @@
 #define USART_TX_BSIZE  1024
 #define USART_RX_BSIZE  16
 
-#define GPIO_PINMEM	256
-
 /* define board */
 #define BLACKPILL
 
@@ -26,22 +24,24 @@
 
 /* Usart */
 #define USE_USART	2
-#define USART_TX_PIN	GPIO_PIN(PA,2)
-#define USART_RX_PIN	GPIO_PIN(PA,3)
+#define USART_TX_PIN	GPIO_PIN(GPIO_PA,2)
+#define USART_RX_PIN	GPIO_PIN(GPIO_PA,3)
 
 #if 1
 /* Usb */
-#define USB_DM		GPIO_PIN(PA,11)
-#define USB_DP		GPIO_PIN(PA,12)
+#define USB_DM		GPIO_PIN(GPIO_PA,11)
+#define USB_DP		GPIO_PIN(GPIO_PA,12)
 #endif
 
-//define USB_VBUS	GPIO_PIN(PA,9)
-//define USB_ID		GPIO_PIN(PA,10)
+//define USB_VBUS	GPIO_PIN(GPIO_PA,9)
+//define USB_ID		GPIO_PIN(GPIO_PA,10)
 
 
-/* User leds */
+/* Macros defined by the LED drv
+ * User leds */
 #define USER_LEDS	1
-#define LED_PINS 	GPIO_PIN(PC,13)
+#define LED_PORT	GPIO_PC
+#define LED_PORT_PINS 	13
 #define LED_BLUE	1
 
 
@@ -52,19 +52,19 @@
 
 #if 0
 /* Cec */
-#define CEC_PIN         GPIO_PIN(PC,4)
+#define CEC_PIN         GPIO_PIN(GPIO_PC,4)
 
 /* Sony A1 */
 // previous use of PB0 changed, because of burned gpio pin
-#define A1_PIN          GPIO_PIN(PC,5)
+#define A1_PIN          GPIO_PIN(GPIO_PC,5)
 
 // OBD1 GM ALDL
-#define OBD160_PIN          GPIO_PIN(PC,5)
+#define OBD160_PIN          GPIO_PIN(GPIO_PC,5)
 
 /* Timer 1 Ch1 & Ch 2, AF1 */
-#define TIM1_CH1_PIN	GPIO_PIN(PE,9)
-#define TIM1_CH2_PIN	GPIO_PIN(PE,11)
+#define TIM1_CH1_PIN	GPIO_PIN(GPIO_PE,9)
+#define TIM1_CH2_PIN	GPIO_PIN(GPIO_PE,11)
 
 /* Timer 8 ch1, AF3 */
-#define TIM8_CH1_PIN	GPIO_PIN(PC,6)
+#define TIM8_CH1_PIN	GPIO_PIN(GPIO_PC,6)
 #endif

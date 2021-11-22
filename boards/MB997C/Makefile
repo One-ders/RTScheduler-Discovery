@@ -1,5 +1,6 @@
 
 DRIVERS+=stddrv.o
+DRIVERS+=led_drv.o
 DRIVERS+=gpio_drv.o
 DRIVERS+=usart_drv.o
 DRIVERS+=usb_core_drv.o
@@ -86,7 +87,7 @@ usb_core_drv: $(OBJ)/drv_obj/usb_core_drv.o
 hr_timer: $(OBJ)/drv_obj/hr_timer.o
 gpio_drv: $(OBJ)/drv_obj/gpio_drv.o
 usart_drv: $(OBJ)/drv_obj/usart_drv.o
-
+led_drv: $(OBJ)/drv_obj/led_drv.o
 ifeq ($(KREL),)
 includes: $(BDIR)/incl $(BDIR)/usr/incl
 
@@ -198,27 +199,38 @@ $(OBJ)/arch/stm32/stm32f407: $(TOP)/arch/stm32/stm32f407
 	mkdir -p $@
 	lndir $< $@
 
-$(OBJ)/drv_obj/gpio_drv.o: stm32f407 $(OBJ)/arch/stm32/gpio/gpio_drv.o
-	mkdir -p $(OBJ)/drv_obj
-	cp  $(OBJ)/arch/stm32/gpio/gpio_drv.o $@
+#$(OBJ)/drv_obj/gpio_drv.o: stm32f407 $(OBJ)/arch/stm32/gpio/gpio_drv.o
+#	mkdir -p $(OBJ)/drv_obj
+#	cp  $(OBJ)/arch/stm32/gpio/gpio_drv.o $@
 
-$(OBJ)/arch/stm32/gpio/gpio_drv.o: $(OBJ)/arch/stm32/gpio
+#$(OBJ)/arch/stm32/gpio/gpio_drv.o: $(OBJ)/arch/stm32/gpio
+#	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
+
+#$(OBJ)/arch/stm32/gpio: $(TOP)/arch/stm32/gpio
+#	mkdir -p $@
+#	lndir $< $@
+
+$(OBJ)/drv_obj/%_drv.o: $(OBJ)/arch/stm32/%/*_drv.o stm32f407
+	mkdir -p $(OBJ)/drv_obj
+	cp  $< $@
+
+$(OBJ)/arch/stm32/%/%_drv.o: $(OBJ)/arch/stm32/%
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 
-$(OBJ)/arch/stm32/gpio: $(TOP)/arch/stm32/gpio
+$(OBJ)/arch/stm32/%: $(TOP)/arch/stm32/%
 	mkdir -p $@
 	lndir $< $@
 
-$(OBJ)/drv_obj/usart_drv.o: stm32f407 $(OBJ)/arch/stm32/usart/usart_drv.o
-	mkdir -p $(OBJ)/drv_obj
-	cp  $(OBJ)/arch/stm32/usart/usart_drv.o $@
+#$(OBJ)/drv_obj/usart_drv.o: stm32f407 $(OBJ)/arch/stm32/usart/usart_drv.o
+#	mkdir -p $(OBJ)/drv_obj
+#	cp  $(OBJ)/arch/stm32/usart/usart_drv.o $@
 
-$(OBJ)/arch/stm32/usart/usart_drv.o: $(OBJ)/arch/stm32/usart
-	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
+#$(OBJ)/arch/stm32/usart/usart_drv.o: $(OBJ)/arch/stm32/usart
+#	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 
-$(OBJ)/arch/stm32/usart: $(TOP)/arch/stm32/usart
-	mkdir -p $@
-	lndir $< $@
+#$(OBJ)/arch/stm32/usart: $(TOP)/arch/stm32/usart
+#	mkdir -p $@
+#	lndir $< $@
 
 
 $(OBJ)/drv_obj/hr_timer.o: stm32f407 $(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o

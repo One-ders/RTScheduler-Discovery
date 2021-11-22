@@ -32,33 +32,78 @@
  */
 #include "stm32f407.h"
 #include "devices.h"
-#include <gpio_drv.h>
 #include "sys.h"
+#include <gpio_drv.h>
 #include "led_drv.h"
 
 static struct driver *pindrv;
 static struct device_handle *pin_dh;
 static int started=0;
+static unsigned int led_map;  // Led 1 bit, defined 0x0000000f
+			      // Led 2 bit, defined 0x000000f0
+			      // ...
 
 /*************************  Led driver ***************************/
 
+// Blackpill is active low, so invert all on off actions
+
 static int led_control(struct device_handle *dh, int cmd, void *arg1, int arg2) {
         switch(cmd) {
-                case LED_CTRL_STAT:
+                case LED_CTRL_STAT: {
+			unsigned int leds=0;
+			unsigned int bits=0;
+			int i;
+
 			if (arg2<4) return -1;
-//			*((unsigned int *)arg1)=GPIOD->ODR&0xf000;
-			pindrv->ops->control(pin_dh, GPIO_BUS_READ_BITS, arg1, arg2);
+			pindrv->ops->control(pin_dh, GPIO_BUS_READ_BITS, &bits, arg2);
+			for(i=0;i<USER_LEDS;i++) {
+				leds|=(bits&(1<<((led_map>>(4*i))&0xf)))?(1<<i):0;
+			}
+#ifdef BLACKPILL
+			*((unsigned int *)arg1)=~leds;    // for blackpill, led is active low
+#else
+			*((unsigned int *)arg1)=leds;
+
+#endif
                         return 0;
+		}
                 case LED_CTRL_ACTIVATE: {
+			unsigned int leds=*(unsigned int *)arg1;
+			int i;
+			int pins=0;
 			if (arg2<4) return -1;
-//			GPIOD->ODR|=((*((unsigned int *)arg1))&0xf000);
-			pindrv->ops->control(pin_dh, GPIO_BUS_SET_BITS, arg1, arg2);
+
+			for(i=0;i<USER_LEDS;i++) {
+				if (leds&(1<<i)) {
+					pins|=1<<((led_map>>(i*4))&0xf);
+				}
+			}
+
+#ifdef BLACKPILL
+			pindrv->ops->control(pin_dh, GPIO_BUS_CLR_BITS, &pins, arg2);
+#else
+			pindrv->ops->control(pin_dh, GPIO_BUS_SET_BITS, &pins, arg2);
+#endif
 			break;
 		}
                 case LED_CTRL_DEACTIVATE: {
+			unsigned int leds=*(unsigned int *)arg1;
+			int i;
+			int pins=0;
+
 			if (arg2<4) return -1;
-//			GPIOD->ODR&=~((*((unsigned int *)arg1))&0xf000);
-			pindrv->ops->control(pin_dh, GPIO_BUS_CLR_BITS, arg1,arg2);
+
+			for(i=0;i<USER_LEDS;i++) {
+				if (leds&(1<<i)) {
+					pins|=1<<((led_map>>(i*4))&0xf);
+				}
+			}
+
+#ifdef BLACKPILL
+			pindrv->ops->control(pin_dh, GPIO_BUS_SET_BITS, &pins, arg2);
+#else
+			pindrv->ops->control(pin_dh, GPIO_BUS_CLR_BITS, &pins, arg2);
+#endif
 			break;
 		}
                 default:
@@ -91,21 +136,24 @@ static int led_init(void *inst) {
 
 static int led_start(void *inst) {
 	int rc;
-	struct pin_spec pd[USER_LEDS];
+	struct pin_spec ps;
 	unsigned int flags;
-	unsigned int pins=LED_PINS;
+	unsigned int pins=LED_PORT_PINS;
 	int i;
+	led_map=LED_PORT_PINS;
 	if (started) return 0;
 	pindrv=driver_lookup(GPIO_DRV);
 	if (!pindrv) return 0;
 	pin_dh=pindrv->ops->open(pindrv->instance,0,0);
 	if (!pin_dh) return 0;
 	flags=GPIO_DIR(0,GPIO_OUTPUT);
+	ps.pins=0;
+	ps.port=LED_PORT;
+	ps.flags=flags;
 	for(i=0;i<USER_LEDS;i++) {
-		pd[i].pin=(pins>>(i*8))&0xff;
-		pd[i].flags=flags;
+		ps.pins|=(1<<((pins>>(i*4))&0xf));
 	}
-	rc=pindrv->ops->control(pin_dh,GPIO_BUS_ASSIGN_PINS,pd,sizeof(pd));
+	rc=pindrv->ops->control(pin_dh,GPIO_BUS_ASSIGN_PINS,&ps,sizeof(ps));
 	started=1;
 	return rc;
 }

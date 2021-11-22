@@ -447,6 +447,32 @@ static int echo_fnc(int argc, char **argv, struct Env *env) {
 	return 0;
 }
 
+static int ememt_fnc(int argc, char **argv, struct Env *env) {
+	int fd=env->io_fd;
+	unsigned int i;
+	unsigned int addr_start=0xd0000000;
+	unsigned int addr_stop= 0xd0800000;
+
+	for (i=addr_start; i<addr_stop; i+=4) {
+		unsigned int *a=(unsigned int *)i;
+		*a=i;
+	}
+
+	for (i=addr_start; i<addr_stop; i+=4) {
+		unsigned int *a=(unsigned int *)i;
+		if (*a!=i) {
+			fprintf(fd,"test failed at %x\n",i);
+			return -1;
+		}
+	}
+
+
+	fprintf(fd,"A success\n");
+
+	return 0;
+}
+
+
 
 
 #if 0
@@ -471,6 +497,7 @@ static struct cmd cmd_root[] = {
 		{"dlog",dump_log_fnc},
 		{"cat",cat_fnc},
 		{"echo",echo_fnc},
+		{"ext_mem_test",ememt_fnc},
 		{0,0}
 };
 
