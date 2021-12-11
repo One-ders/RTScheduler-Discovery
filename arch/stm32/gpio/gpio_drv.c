@@ -342,7 +342,7 @@ static int set_flags(struct pin_data *pdp, unsigned int flags, unsigned int bpin
 				break;
 			}
 			default: {
-//				sys_printf(" gpio unknown drive mode %d\n",drive);
+				sys_printf(" gpio unknown drive mode %d\n",drive);
 			}
 		}
 	}
@@ -453,7 +453,7 @@ static int gpio_init(void *inst);
 static struct device_handle *gpio_open(void *instance, DRV_CBH callback, void *userdata) {
 	struct pin_data *pd=0;
 	int ix=get_user(&pd);
-	sys_printf("gpio_open rc=%d\n",ix);
+//	sys_printf("gpio_open rc=%d\n",ix);
 	if (ix<0) return 0;
 	pd->userdata=userdata;
 	pd->callback=callback;
@@ -463,11 +463,14 @@ static struct device_handle *gpio_open(void *instance, DRV_CBH callback, void *u
 static int gpio_close(struct device_handle *dh) {
 	struct pin_data *pdp=(struct pin_data *)dh;
 	int i;
-	sys_printf("gpio_close\n");
+//	sys_printf("gpio_close: port %x, pins %x\n", pdp->port, pdp->pins);
 	for(i=0;i<16;i++) {
 		if (pdp->pins&(1<<i)) {
+			int flags=0;
+			flags=GPIO_DIR(0,GPIO_INPUT);
+			flags=GPIO_DRIVE(flags,GPIO_FLOAT);
+			set_flags(pdp,flags,(pdp->port<<4)|i);
 			deassign_pin(pdp,(pdp->port<<4)|i);
-			set_flags(pdp,GPIO_INPUT,(pdp->port<<4)|i);
 		}
 	}
 //	pdp->flags&=~PIN_FLAGS_ASSIGNED;

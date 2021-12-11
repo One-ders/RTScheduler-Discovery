@@ -673,6 +673,19 @@ static unsigned int class_data_in(void *ud_v, unsigned char epnum) {
 
 static int usb_serial_putc(struct user_data *ud, int c);
 
+static unsigned char ud_epnum;
+static struct usb_dev_handle *pdev;
+
+static int resume_receiver() {
+	if (pdev) {
+		if ((usb_data0.rx_in-usb_data0.rx_out)<8) {
+			usb_dev_prepare_rx(pdev,ud_epnum,rx_buf[ud_epnum],8);
+			pdev=0;
+		}
+	}
+	return 0;
+}
+
 static unsigned int class_data_out(void *ud_v, unsigned char epnum) {
 	struct usb_data *ud=(struct usb_data *)ud_v;
 	unsigned int rx_cnt;
@@ -692,8 +705,13 @@ static unsigned int class_data_out(void *ud_v, unsigned char epnum) {
 	}
 
 
-	usb_dev_prepare_rx(ud->core,epnum,
+	if ((usb_data0.rx_in-usb_data0.rx_out)<8) {
+		usb_dev_prepare_rx(ud->core,epnum,
 				rx_buf[epnum],8);
+	} else {
+		pdev=ud->core;
+		ud_epnum=epnum;
+	}
 
 	wakeup_users(EV_READ);
 	return 0;
@@ -912,6 +930,7 @@ static int usb_serial_read(struct user_data *ud, char *buf, int len) {
 		buf[i++]=usb_data->rx_buf[ix];
 		usb_data->rx_out++;
 	}
+	resume_receiver();
 	buf[i]=0;
 	return i;
 }

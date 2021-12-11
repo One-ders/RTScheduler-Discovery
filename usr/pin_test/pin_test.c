@@ -10,10 +10,12 @@
 #include <string.h>
 
 int loop_read(int argc, char **argv, struct Env *env);
+int set_pin(int argc, char **argv, struct Env *env);
 
 static struct cmd cmds[] = {
 	{"help", generic_help_fnc},
 	{"loop_read", loop_read},
+	{"set_pin", set_pin},
 	{0,0}
 };
 
@@ -177,6 +179,89 @@ int loop_read(int argc, char **argv, struct Env *env) {
 	rc=io_control(led_fd,LED_CTRL_DEACTIVATE,&led,sizeof(led));
 	io_close(gpio_fd);
 	io_close(led_fd);
+	return 0;
+}
+
+int set_pin(int argc, char **argv, struct Env *env) {
+	int gpio_fd=io_open(GPIO_DRV);
+	int flags=0;
+	int pin_group;
+	int pin_no;
+	char *pin_no_str;
+	int pin=0;
+	int pin_stat;
+	int level=0;
+	int rc;
+	char buf[8];
+
+	if (argc!=3) {
+		 fprintf(env->io_fd, "need argument: PIN_NO level\n");
+		 return -1;
+	}
+
+	if (strncmp(argv[1],"PA",2)==0) {
+		pin_group=0x00;
+	} else if (strncmp(argv[1],"PB",2)==0) {
+		pin_group=0x10;
+	} else if (strncmp(argv[1],"PC",2)==0) {
+		pin_group=0x20;
+	} else if (strncmp(argv[1],"PD",2)==0) {
+		pin_group=0x30;
+	} else if (strncmp(argv[1],"PE",2)==0) {
+		pin_group=0x40;
+	} else if (strncmp(argv[1],"PF",2)==0) {
+		pin_group=0x50;
+	} else if (strncmp(argv[1],"PG",2)==0) {
+		pin_group=0x60;
+	} else if (strncmp(argv[1],"PH",2)==0) {
+		pin_group=0x70;
+	} else if (strncmp(argv[1],"PI",2)==0) {
+		pin_group=0x80;
+	} else {
+		fprintf(env->io_fd, "Pin :%s: does not exist\n", argv[1]);
+		return -1;
+	}
+
+	pin_no_str=&argv[1][2];
+
+	pin_no=strtoul(pin_no_str,0,10);
+
+	if (pin_no>15) {
+		fprintf(env->io_fd, "Pin number must be between 0-15\n");
+		return -1;
+	}
+
+	pin=pin_group|pin_no;
+
+	level=strtoul(argv[2],0,10);
+
+	if ((level!=0) && (level!=1)) {
+		fprintf(env->io_fd, "level must be 0 or 1\n");
+		return -1;
+	}
+
+	rc=io_control(gpio_fd, GPIO_BIND_PIN, &pin, sizeof(pin));
+	if (rc<0) {
+		fprintf(env->io_fd, "Failed to bind pin %x, fault coude %d\n", pin, rc);
+		return -1;
+	}
+
+	flags=GPIO_DIR(0,GPIO_OUTPUT);
+	flags=GPIO_DRIVE(flags,GPIO_PUSHPULL);
+	flags=GPIO_SPEED(flags,GPIO_SPEED_SLOW);
+
+	rc=io_control(gpio_fd, GPIO_SET_FLAGS, &flags, sizeof(flags));
+	if (rc<0) {
+		fprintf(env->io_fd, "Failed to set pin %x flags, fault coude %d\n", pin, rc);
+		return -1;
+	}
+
+	fprintf(env->io_fd, "Setting gpio pin %s to %d\n", argv[1], level);
+	rc=io_control(gpio_fd, GPIO_SET_PIN, &level, sizeof(level));
+	fprintf(env->io_fd, "hit Return to release pin\n");
+	io_read(env->io_fd, buf, 8);
+
+	io_close(gpio_fd);
 	return 0;
 }
 
