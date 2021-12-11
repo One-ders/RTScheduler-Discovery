@@ -8,6 +8,9 @@
 
 #define __FPU_PRESENT 0
 #define __FPU_USED 0
+
+#define HSE_STARTUP_TIMEOUT 0x0500
+
 /**
   * @brief  Setup the microcontroller system
   *         Initialize the FPU setting, vector table location and External memory
@@ -31,6 +34,9 @@ void led_flash(int oncnt, int offcnt) {
 }
 
 void clk_init(void) {
+	volatile unsigned int startup_cnt=0;
+        volatile unsigned int HSE_status=0;
+
 	/* FPU settings ------------------------------------------------------------*/
 	#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
 		SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));  /* set CP10 and CP11 Full Access */
@@ -68,17 +74,35 @@ void clk_init(void) {
 	PWR->CR|=PWR_CR_VOS_MASK;
 
 	RCC->CR|=RCC_CR_HSEON;
-	while(!(RCC->CR&RCC_CR_HSERDY));
+	do {
+		HSE_status=RCC->CR&RCC_CR_HSERDY;
+		startup_cnt++;
+	} while ((!HSE_status) && (startup_cnt!=HSE_STARTUP_TIMEOUT));
+//	while(!(RCC->CR&RCC_CR_HSERDY));
+
+       if (RCC->CR&RCC_CR_HSERDY) {
+                HSE_status=1;
+        } else {
+                HSE_status=0;
+                /* Failed to start external clock */
+                return;
+                ASSERT(0);
+        }
+
 
 	RCC->APB1ENR |= RCC_APB1ENR_PWREN;
 	PWR->CR|=PWR_CR_DBP;
 
+// if external RTC source oscillator is enabled, the startup will take about
+// 10 secs. extra bonus is that not running external osc. will free up pins PC14 and PC15
+#if 0
 	RCC->BDCR|=RCC_BDCR_BDRST;
 	RCC->BDCR&=~RCC_BDCR_BDRST;
 	RCC->BDCR|=RCC_BDCR_LSEON;
 	while(!(RCC->BDCR&RCC_BDCR_LSERDY));
 	RCC->BDCR=(RCC->BDCR&~RCC_BDCR_RTCSEL_MASK)|(1<<RCC_BDCR_RTCSEL_SHIFT);
 	RCC->BDCR|=RCC_BDCR_RTCEN;
+#endif
 
 // PLLM = 0x19  el  25
 // PLLN = 0x150 el 336
