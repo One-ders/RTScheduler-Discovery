@@ -562,6 +562,10 @@ again:
 				fdd->flags=get_svc_arg(svc_sp,2);
 				return 0;
 			}
+			if (get_svc_arg(svc_sp,1)==F_GETFL) {
+				set_svc_ret(svc_sp,fdd->flags);
+				return 0;
+			}
 			rc=driver->ops->control(dh,get_svc_arg(svc_sp,1),(void *)get_svc_arg(svc_sp,2),get_svc_arg(svc_sp,3));
 			set_svc_ret(svc_sp,rc);
 			return 0;

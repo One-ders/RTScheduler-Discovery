@@ -8,7 +8,7 @@
 #define TQ_SIZE		1024
 
 #define USB_TX_BSIZE	128 // lower than 128 will result in a bootup crash
-#define USB_RX_BSIZE	64
+#define USB_RX_BSIZE	512 //  multiples of 64
 
 #define USART_TX_BSIZE  1024
 #define USART_RX_BSIZE  16
@@ -19,8 +19,10 @@
 #define SDRAM_SIZE	128*1024
 #define BYTES_PER_LONG	4
 
-#define USB_VENDOR	0x24,0x04
-#define USB_PRODUCT	0x4e,0x27
+//#define USB_VENDOR	0x24,0x04
+//#define USB_PRODUCT	0x4e,0x27
+#define USB_VENDOR	0x48,0x25
+#define USB_PRODUCT	0x01,0x10
 
 /* Usart */
 #define USE_USART	2
@@ -44,11 +46,14 @@
 #define LED_PORT_PINS 	13
 #define LED_BLUE	1
 
-
-//#define SYS_CONSOLE_DEV		"usart0"
-//#define USER_CONSOLE_DEV	"usart0"
-#define SYS_CONSOLE_DEV		"usb_serial0"
-#define USER_CONSOLE_DEV	"usb_serial0"
+#ifndef SYS_CONSOLE_DEV
+#define SYS_CONSOLE_DEV		"usart0"
+//#define SYS_CONSOLE_DEV		"usb_serial0"
+#endif
+#ifndef USER_CONSOLE_DEV
+#define USER_CONSOLE_DEV	"usart0"
+//#define USER_CONSOLE_DEV	"usb_serial0"
+#endif
 
 #if 0
 /* Cec */

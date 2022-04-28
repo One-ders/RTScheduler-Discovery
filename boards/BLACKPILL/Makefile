@@ -5,7 +5,7 @@ DRIVERS+=led_drv.o
 DRIVERS+=usart_drv.o
 DRIVERS+=usb_core_drv.o
 DRIVERS+=usb_serial_drv.o
-#DRIVERS+=hr_timer.o
+DRIVERS+=hr_timer.o
 
 DTARGETS=$(DRIVERS:.o=)
 DOBJS=$(patsubst %, $(OBJ)/drv_obj/%, $(DRIVERS))
@@ -37,9 +37,9 @@ export CC:=arm-none-eabi-gcc
 export LD:=arm-none-eabi-ld
 export OBJCOPY:=arm-none-eabi-objcopy
 
-CFLAGS=-I. -I$(BDIR)/incl -I$(BDIR)/incl/stm32/stm32f411/incl -I$(BDIR) -I$(BDIR)/incl/stm32 -I$(BDIR)/incl/stm32/incl -g -O2 -DDEBUG -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
+CFLAGS=-I. -I$(BDIR)/incl -I$(BDIR)/incl/stm32/stm32f411/incl -I$(BDIR) -I$(BDIR)/incl/stm32 -I$(BDIR)/incl/stm32/incl -g -O2 -DDEBUG -DBOARD_$(BOARD) -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
-CFLAGS_USR:=-I$(TOP)/usr/incl -I$(BDIR) -I$(GCC_BASE)/lib/gcc/arm-none-eabi/4.8.3/include -g -Os -DDEBUG -fno-builtin -ffreestanding -nostdinc -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
+CFLAGS_USR:=-I$(TOP)/usr/incl -I$(BDIR) -I$(GCC_BASE)/lib/gcc/arm-none-eabi/4.8.3/include -g -Os -DDEBUG -DBOARD_$(BOARD) -fno-builtin -ffreestanding -nostdinc -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
 #LDFLAGS=-g -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fno-builtin
 

@@ -570,6 +570,18 @@ static int gpio_control(struct device_handle *dh, int cmd, void *arg1, int arg2)
 			pdp->flags&=~PIN_FLAGS_ASSIGNED;
 			break;
 		}
+		case GPIO_BUS_UPDATE_FLAGS: {
+			unsigned int flags;
+			if (arg2!=4) return -1;
+			flags=*((unsigned int *)arg1);
+			int i;
+			for(i=0;i<16;i++) {
+				if (pdp->pins&(1<<i)) {
+					set_flags(pdp,flags,(pdp->port<<4)|i);
+				}
+			}
+			break;
+		}
 		case GPIO_BUS_READ_BUS: {
 			unsigned int *bits=(unsigned int *)arg1;
 			int port=pdp->port;

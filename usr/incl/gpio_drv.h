@@ -102,6 +102,7 @@
 #define GPIO_BUS_WRITE_BUS		0x1014
 #define GPIO_BUS_SET_BITS		0x1015
 #define GPIO_BUS_CLR_BITS		0x1016
+#define GPIO_BUS_UPDATE_FLAGS		0x1017
 
 struct pin_spec {
 	unsigned short int port;

@@ -239,19 +239,20 @@ struct dyn_open_args {
 	struct device_handle *dh;
 };
 
-#define RD_CHAR 1
-#define WR_CHAR	2
-#define IO_POLL	3
-#define IO_CALL 4
-#define IO_NOCALL 5
-#define WR_POLLED_MODE 6
-#define WR_GET_RESULT 7
-#define F_SETFL	8
-#define READDIR 9
-#define DYNOPEN 10
-#define IO_LSEEK 11
-#define IO_MMAP 12
-#define IO_MUNMAP 13
+#define RD_CHAR		1
+#define WR_CHAR		2
+#define IO_POLL		3
+#define IO_CALL		4
+#define IO_NOCALL	5
+#define WR_POLLED_MODE	6
+#define WR_GET_RESULT	7
+#define F_SETFL		8
+#define F_GETFL		9
+#define READDIR		10
+#define DYNOPEN		11
+#define IO_LSEEK	12
+#define IO_MMAP		13
+#define IO_MUNMAP	14
 
 
 #define O_NONBLOCK 1

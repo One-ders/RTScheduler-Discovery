@@ -44,12 +44,13 @@ int brk(void *);
 #define WR_POLLED_MODE 6
 #define WR_GET_RESULT 7
 #define F_SETFL 8
-#define READDIR 9
-#define DYNOPEN 10
+#define F_GETFL 9
+#define READDIR 10
+#define DYNOPEN 11
 #if 0
-#define IO_LSEEK 11
-#define IO_MMAP  12
-#define IO_MUNMAP 13
+#define IO_LSEEK 12
+#define IO_MMAP  13
+#define IO_MUNMAP 14
 #endif
 
 #define O_NONBLOCK 1

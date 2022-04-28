@@ -140,9 +140,13 @@
 #define FMC_D29  PI7
 #endif
 
+#ifndef SYS_CONSOLE_DEV
 #define SYS_CONSOLE_DEV		"usart0"
+#endif
+#ifndef USER_CONSOLE_DEV
 //#define USER_CONSOLE_DEV	"usart0"
 #define USER_CONSOLE_DEV	"usb_serial0"
+#endif
 
 #define USB_VENDOR	0x24,0x04
 #define USB_PRODUCT	0x4e,0x27

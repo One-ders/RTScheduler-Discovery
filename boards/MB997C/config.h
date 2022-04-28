@@ -39,10 +39,14 @@
 #define USB_VENDOR	0x48,0x25
 #define USB_PRODUCT	0x01,0x10
 
+#ifndef SYS_CONSOLE_DEV
 #define SYS_CONSOLE_DEV		"usart0"
+//#define SYS_CONSOLE_DEV	"usb_serial0"
+#endif
+#ifndef USER_CONSOLE_DEV
 #define USER_CONSOLE_DEV	"usart0"
-//#define SYS_CONSOLE_DEV		"usb_serial0"
 //#define USER_CONSOLE_DEV	"usb_serial0"
+#endif
 
 /* Macros defined by LED drv.
  * User leds */

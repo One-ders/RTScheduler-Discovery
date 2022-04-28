@@ -119,7 +119,7 @@
 
 //static int core_fd;
 
-static unsigned char rx_buf[8][8];
+static unsigned char rx_buf[8][64];  // 8 buffers of USB_FS_PACKET_MAXSIZE
 
 unsigned char CmdBuff[64];
 static unsigned int cdcCmd=0xFF;
@@ -538,7 +538,7 @@ static unsigned int class_init(void *ud_v, unsigned char cfgidx) {
 	usb_dev_prepare_rx(ud->core,
 				USB_ENDPOINT_OUT(2),
 				rx_buf[2],
-				8);
+				64);
 
 	return 0;
 }
@@ -650,7 +650,7 @@ static unsigned int class_data_in(void *ud_v, unsigned char epnum) {
 	struct usb_data *ud=(struct usb_data *)ud_v;
 //	sys_printf("class_data_in: %x, epnum %d\n", ud_v, epnum);
 	if (ud->tx_in) {
-		int len=MIN(ud->tx_in,64);
+		int len=MIN(ud->tx_in,TX_BSIZE);
 		unsigned char *buf=(unsigned char *)ud->tx_buf;
 //	        sys_printf("usb sw irq: cb %d\n",ud->currbuf);
 		if (ud->currbuf) {
@@ -678,8 +678,8 @@ static struct usb_dev_handle *pdev;
 
 static int resume_receiver() {
 	if (pdev) {
-		if ((usb_data0.rx_in-usb_data0.rx_out)<8) {
-			usb_dev_prepare_rx(pdev,ud_epnum,rx_buf[ud_epnum],8);
+		if ((usb_data0.rx_in-usb_data0.rx_out)<=(RX_BSIZE-64)) {
+			usb_dev_prepare_rx(pdev,ud_epnum,rx_buf[ud_epnum],64);
 			pdev=0;
 		}
 	}
@@ -696,7 +696,8 @@ static unsigned int class_data_out(void *ud_v, unsigned char epnum) {
 
 	for(i=0;i<rx_cnt;i++) {
 		if ((usb_data0.rx_in-usb_data0.rx_out)>=RX_BSIZE) {
-			sys_printf("usb_serial: rx overrun\n");
+			sys_printf("usb_serial: rx overrun, rx_cnt %d, bc %d\n",
+				rx_cnt, (usb_data0.rx_in-usb_data0.rx_out));
 			break;
 		}
 
@@ -705,9 +706,9 @@ static unsigned int class_data_out(void *ud_v, unsigned char epnum) {
 	}
 
 
-	if ((usb_data0.rx_in-usb_data0.rx_out)<8) {
+	if ((usb_data0.rx_in-usb_data0.rx_out)<=(RX_BSIZE-64)) {
 		usb_dev_prepare_rx(ud->core,epnum,
-				rx_buf[epnum],8);
+				rx_buf[epnum],64);
 	} else {
 		pdev=ud->core;
 		ud_epnum=epnum;
@@ -1058,6 +1059,9 @@ static int usb_serial_start(void *instance) {
 
 	ud->currbuf=0;
 	ud->tx_buf=ud->tx_buf0;
+	ud->tx_in=ud->tx_out=0;
+	ud->txr=0;
+
 
 //	ud->core=&USB_OTG_dev;
 	usbd_init(&ud->core,

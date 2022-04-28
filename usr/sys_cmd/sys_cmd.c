@@ -44,8 +44,8 @@ struct dents {
 	char name[32];
 };
 
-#define READDIR 9
-#define DYNOPEN 10
+#define READDIR 10
+#define DYNOPEN 11
 
 static char toNum(int state) {
         switch(state) {
