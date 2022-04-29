@@ -144,8 +144,8 @@
 #define SYS_CONSOLE_DEV		"usart0"
 #endif
 #ifndef USER_CONSOLE_DEV
-//#define USER_CONSOLE_DEV	"usart0"
-#define USER_CONSOLE_DEV	"usb_serial0"
+#define USER_CONSOLE_DEV	"usart0"
+//#define USER_CONSOLE_DEV	"usb_serial0"
 #endif
 
 #define USB_VENDOR	0x24,0x04
