@@ -769,7 +769,7 @@ static void usr_dev_reset(unsigned char speed) {
 
 unsigned int tx_started;
 static void usr_dev_configured(void) {
-//	sys_printf("usb_serial: usb_dev_configured, started\n");
+	sys_printf("usb_serial: usb_dev_configured, started\n");
 	tx_started=1;
 	class_data_in(&usb_data0, 0x82);
 }
@@ -917,11 +917,13 @@ void USB_OTG_BSP_Init(USB_OTG_CORE_HANDLE *pdev) {
 static int usb_serial_read(struct user_data *ud, char *buf, int len) {
 	struct usb_data *usb_data=ud->usb_data;
 	int i=0;
+//	sys_printf("usb_serial_read: want %d bytes\n",len);
 	while(i<len) {
 		int ix=usb_data->rx_out%RX_BSIZE;
 		if (!(usb_data->rx_in-usb_data->rx_out)) {
 			if (!i) {
 				ud->ev_flags|=EV_READ;
+//				sys_printf("usb_serial_read: leave with AGAIN\n");
 				return -DRV_AGAIN;
 			} else {
 				break;
@@ -933,6 +935,7 @@ static int usb_serial_read(struct user_data *ud, char *buf, int len) {
 	}
 	resume_receiver();
 	buf[i]=0;
+//	sys_printf("usb_serial_read: return rc=%d\n",i);
 	return i;
 }
 
@@ -944,11 +947,15 @@ static int usb_serial_putc(struct user_data *ud, int c) {
 		restore_cpu_flags(cpu_flags);
 		return -DRV_AGAIN;
 	}
+	if (!tx_started) {
+		ud->ev_flags|=EV_WRITE;
+		restore_cpu_flags(cpu_flags);
+		return -DRV_AGAIN;
+	}
 //	sys_printf("usb write(%d): tx_in %d\n", usb_data->currbuf,usb_data->tx_in);
 	usb_data->tx_buf[IX(usb_data->tx_in)]=c;
 	usb_data->tx_in++;
 	restore_cpu_flags(cpu_flags);
-	if (!tx_started) return 1;
 	cpu_flags=disable_interrupts();
 	if(!usb_data->txr) {
 		int len=usb_data->tx_in;

@@ -511,7 +511,11 @@ again:
 				if ((done!=get_svc_arg(svc_sp,2))&&(!(fdd->flags&O_NONBLOCK))) {
 					goto again;
 				}
+			} else {
+				set_svc_ret(svc_sp,rc);
+				return 0;
 			}
+
 			set_svc_ret(svc_sp,done);
 			return 0;
 			}
