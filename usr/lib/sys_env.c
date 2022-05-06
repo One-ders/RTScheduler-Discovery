@@ -53,11 +53,16 @@ int install_cmd_node(struct cmd_node *new, struct cmd_node *parent) {
 int generic_help_fnc(int argc, char **argv, struct Env *env) {
 	struct cmd *cmd=current_node->cmds;
 	struct cmd_node *cn=current_node->next;
+	int i=0;
 	fprintf(env->io_fd, "help called with %d args\n", argc);
 	fprintf(env->io_fd, "available commands:\n");
 	while(cmd->name) {
 		fprintf(env->io_fd, "%s, ", cmd->name);
 		cmd++;
+		i++;
+		if (0==(i%4)) {
+			fprintf(env->io_fd, "\n");
+		}
 	}
 
 	while(cn){

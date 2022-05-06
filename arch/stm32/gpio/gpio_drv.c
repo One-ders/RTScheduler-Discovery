@@ -186,7 +186,7 @@ void EXTI9_5_IRQHandler(void) {
 	int i;
 	enable_interrupts();
 	for (i=5;i<10;i++) {
-		if (stat&&(1<<i)) {
+		if (stat&(1<<i)) {
 			if (exti2pd[i] && exti2pd[i]->callback) {
 				exti2pd[i]->callback(&exti2pd[i]->dh,EV_STATE,exti2pd[i]->userdata);
 			}
@@ -196,9 +196,19 @@ void EXTI9_5_IRQHandler(void) {
 }
 
 void EXTI15_10_IRQHandler(void) {
+	unsigned short int stat=exti_regs->pr&0xfc00;
+	int i;
 	enable_interrupts();
-	sys_printf("exti15_10_irq\n");
-	exti_regs->pr=0xfc00;
+	for (i=10;i<16;i++) {
+		if (stat&(1<<i)) {
+			if (exti2pd[i] && exti2pd[i]->callback) {
+				exti2pd[i]->callback(&exti2pd[i]->dh,EV_STATE,exti2pd[i]->userdata);
+			} else {
+				sys_printf("no callback routine for ext irq %d\n", i);
+			}
+		}
+	}
+	exti_regs->pr=stat;
 }
 
 

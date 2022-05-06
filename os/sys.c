@@ -570,6 +570,20 @@ again:
 				set_svc_ret(svc_sp,fdd->flags);
 				return 0;
 			}
+			if (get_svc_arg(svc_sp,1)==IO_POLL) {
+poll_again:
+				current->blocker.dh=dh;
+				current->blocker.ev=EV_STATE;
+				rc=driver->ops->control(dh,IO_POLL,(void *)get_svc_arg(svc_sp,2),get_svc_arg(svc_sp,3));
+
+				if (rc==-DRV_AGAIN&&(!(fdd->flags&O_NONBLOCK))) {
+					current->blocker.driver=driver;
+					sys_sleepon(&current->blocker,0);
+					goto poll_again;
+				}
+				set_svc_ret(svc_sp,rc);
+				return 0;
+			}
 			rc=driver->ops->control(dh,get_svc_arg(svc_sp,1),(void *)get_svc_arg(svc_sp,2),get_svc_arg(svc_sp,3));
 			set_svc_ret(svc_sp,rc);
 			return 0;
@@ -994,7 +1008,7 @@ void *sys_sleepon(struct blocker *so, unsigned int *tout) {
 		restore_cpu_flags(cpu_flags);
 		return 0;
 	}
-	if (so->driver && device_ready(so)) {
+	if (so->driver && (device_ready(so)>0)) {
 		restore_cpu_flags(cpu_flags);
 		return 0;
 	}

@@ -472,6 +472,63 @@ static int ememt_fnc(int argc, char **argv, struct Env *env) {
 	return 0;
 }
 
+#define HR_TIMER_SET 0x1001
+
+static int hr_timer_test(int argc, char **argv, struct Env *env) {
+	int fd=env->io_fd;
+	int hrt;
+	int rc=0;
+	unsigned int tout=1000000;  // 1000000 uS -> 1 Sec
+	int ttime=20; 			// run for 20 sec
+
+	hrt=io_open("hr_timer");
+	if (hrt<0) {
+		fprintf(fd,"could not open hr timer");
+		return 0;
+	}
+
+	rc=io_control(hrt, HR_TIMER_SET, &tout,sizeof(tout));
+	if (rc<0) {
+		fprintf(fd,"could request timeout");
+		return 0;
+	}
+
+	while(1) {
+		io_control(hrt, IO_POLL, (void *)EV_STATE, 0);
+		ttime--;
+		fprintf(fd, "1 sec timeout, time left %d\n", ttime);
+		if (ttime) {
+			rc=io_control(hrt, HR_TIMER_SET, &tout,sizeof(tout));
+		} else {
+			break;
+		}
+	}
+
+	io_close(hrt);
+	fprintf(fd,"Done\n");
+
+	return 0;
+}
+
+static int sys_timer_test(int argc, char **argv, struct Env *env) {
+	int rc=0;
+	int ttime=20; 			// run for 20 sec
+	int fd=env->io_fd;
+
+	while(1) {
+		sleep(1000);
+		ttime--;
+		fprintf(fd, "1 sec timeout, time left %d\n", ttime);
+		if (!ttime) {
+			break;
+		}
+	}
+
+	fprintf(fd,"Done\n");
+	return 0;
+}
+
+
 
 
 
@@ -498,6 +555,8 @@ static struct cmd cmd_root[] = {
 		{"cat",cat_fnc},
 		{"echo",echo_fnc},
 		{"ext_mem_test",ememt_fnc},
+		{"hr_timer",hr_timer_test},
+		{"sys_timer",sys_timer_test},
 		{0,0}
 };
 

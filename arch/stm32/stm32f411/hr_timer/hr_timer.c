@@ -351,8 +351,8 @@ static int hr_timer_control(struct device_handle *dh, int cmd, void *arg, int le
 static int hr_timer_init(void *inst) {
 
 	RCC->APB2ENR |= RCC_APB2ENR_TIM10EN;
-	/* at 168Mhz, prescaler count of 167 give 1uS timer tics */
-	TIM10->PSC=167;   /* prescaling 4Mhz to 1 Mhz should probably be 3...*/
+	/* Blackpill configured to 84Mhz, prescaler count of 84 give 1uS timer tics */
+	TIM10->PSC=83;   /* */
 	TIM10->CNT=0;
 	TIM10->ARR=60000; /* 60000 gives 60 mS */
 	tic_step=60000;
@@ -366,6 +366,7 @@ static int hr_timer_init(void *inst) {
 
 
 static int hr_timer_start(void *inst) {
+
 	return 0;
 }
 
