@@ -275,7 +275,7 @@ static int sys_drv_wakeup(struct device_handle *dh, int ev, void *user_ref) {
 		if (current->blocker.wakeup_tic) {
 			sys_timer_remove(&current->blocker);
 		}
-//		sys_printf("sys_drv_wakeup: wake up current\n");
+//		sys_printf("sys_drv_wakeup: wake up current, ev(%x), nfds=%d\n",ev, task->sel_data.nfds);
 		goto out;
 	} else {
 //		sys_printf("sys_drv_wakeup: wake up %s\n", task->name);
@@ -461,6 +461,7 @@ done:
 					break;
 				}
 			}
+			current->blocker.ev=0;
 			set_svc_ret(svc_sp,rc);
 			return 0;
 			}
@@ -499,6 +500,11 @@ again:
 				current->blocker.driver=driver;
 				sys_sleepon(&current->blocker,0);
 				rc=driver->ops->control(dh,WR_GET_RESULT,&result,sizeof(result));
+				current->blocker.ev=0;
+				if (current->blocker.wake) {
+					current->blocker.wake=0;
+					sys_printf("clearing old wake\n");
+				}
 				if (rc<0) {
 					set_svc_ret(svc_sp,rc);
 				} else {
@@ -512,10 +518,20 @@ again:
 					goto again;
 				}
 			} else {
+				current->blocker.ev=0;
+				if (current->blocker.wake) {
+					current->blocker.wake=0;
+					sys_printf("clearing old wake\n");
+				}
 				set_svc_ret(svc_sp,rc);
 				return 0;
 			}
 
+			current->blocker.ev=0;
+			if (current->blocker.wake) {
+				current->blocker.wake=0;
+				sys_printf("clearing old wake\n");
+			}
 			set_svc_ret(svc_sp,done);
 			return 0;
 			}
@@ -581,10 +597,12 @@ poll_again:
 					sys_sleepon(&current->blocker,0);
 					goto poll_again;
 				}
+				current->blocker.ev=0;
 				set_svc_ret(svc_sp,rc);
 				return 0;
 			}
 			rc=driver->ops->control(dh,get_svc_arg(svc_sp,1),(void *)get_svc_arg(svc_sp,2),get_svc_arg(svc_sp,3));
+			current->blocker.ev=0;
 			set_svc_ret(svc_sp,rc);
 			return 0;
 			}
@@ -1001,6 +1019,7 @@ int device_ready(struct blocker *b) {
 void *sys_sleepon(struct blocker *so, unsigned int *tout) {
 	unsigned long int cpu_flags;
 	if (!task_sleepable()) return 0;
+
 	cpu_flags=disable_interrupts();
 
 	if (so->wake) {
