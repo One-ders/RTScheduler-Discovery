@@ -287,10 +287,15 @@ static int hr_timer_set(struct timer_user *u, int val) {
 	return 0;
 }
 
+static int hr_timer_probe(struct timer_user *u) {
+	if (!u->out_tic) return -1;
+	return (u->out_tic-get_current_hr_tic());
+}
+
 static int hr_timer_clr(struct timer_user *u) {
-	unsigned int left;
+	int left;
 	unsigned long int cpu_flags;
-	if (!u->out_tic) return 0;
+	if (!u->out_tic) return -1;
 	cpu_flags=disable_interrupts();
 	left=u->out_tic-get_current_hr_tic();
 	u->out_tic=0;
@@ -331,6 +336,9 @@ static int hr_timer_control(struct device_handle *dh, int cmd, void *arg, int le
 			break;
 		case HR_TIMER_CANCEL:
 			return hr_timer_clr(u);
+			break;
+		case HR_TIMER_PROBE:
+			return hr_timer_probe(u);
 			break;
 		case HR_TIMER_GET_TIC: {
 			unsigned int *ttic=((unsigned int *)arg);
