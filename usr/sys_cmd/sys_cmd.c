@@ -192,7 +192,7 @@ static int kmem_fnc(int argc, char **argv, struct Env *env) {
 				fprintf(env->io_fd,"write addr %x\n",address);
 				break;
 			default: {
-				fprintf(env->io_fd, "kmem arg error %c\n",opt);
+				fprintf(env->io_fd, "kmem arg error %c, use -r addr len, or -w addr val len\n",opt);
 				rc=-1;
 				goto out;
 			}

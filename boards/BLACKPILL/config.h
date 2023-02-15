@@ -47,12 +47,12 @@
 #define LED_BLUE	1
 
 #ifndef SYS_CONSOLE_DEV
-#define SYS_CONSOLE_DEV		"usart0"
-//#define SYS_CONSOLE_DEV		"usb_serial0"
+//#define SYS_CONSOLE_DEV		"usart0"
+#define SYS_CONSOLE_DEV		"usb_serial0"
 #endif
 #ifndef USER_CONSOLE_DEV
-#define USER_CONSOLE_DEV	"usart0"
-//#define USER_CONSOLE_DEV	"usb_serial0"
+//#define USER_CONSOLE_DEV	"usart0"
+#define USER_CONSOLE_DEV	"usb_serial0"
 #endif
 
 #if 0

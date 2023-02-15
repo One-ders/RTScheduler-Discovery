@@ -114,7 +114,7 @@ usr.bin.o: $(OBJ)/usr/sys_cmd/sys_cmd.o $(OBJ)/usr/blinky/blinky.o $(OBJ)/usr/pi
 endif
 
 ifeq ($(KREL),)
-$(OBJ)/usr/lib/usrlib.o: $(OBJ)/usr/lib $(OBJ)/usr/lib/arm/syscall_lib.o
+$(OBJ)/usr/lib/usrlib.o: $(OBJ)/usr/lib $(OBJ)/usr/lib/arm/syscall_lib.o $(OBJ)/usr/lib/arm/ffs.o
 	CFLAGS="$(CFLAGS_USR)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $(OBJ)/usr/lib
 
 $(OBJ)/usr/lib: $(TOP)/usr/lib
@@ -122,6 +122,11 @@ $(OBJ)/usr/lib: $(TOP)/usr/lib
 	lndir $< $@
 
 $(OBJ)/usr/lib/arm/syscall_lib.o: $(TOP)/usr/lib
+	mkdir -p $(OBJ)/usr/lib/arm
+	lndir $< $(OBJ)/usr/lib
+	CFLAGS="$(CFLAGS_USR)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $(OBJ)/usr/lib/arm
+
+$(OBJ)/usr/lib/arm/ffs.o: $(TOP)/usr/lib
 	mkdir -p $(OBJ)/usr/lib/arm
 	lndir $< $(OBJ)/usr/lib
 	CFLAGS="$(CFLAGS_USR)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $(OBJ)/usr/lib/arm

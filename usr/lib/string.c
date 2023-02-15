@@ -196,7 +196,7 @@ unsigned long int strtoul(char *str, char **endp, int base) {
 		if ((p[0]=='0')&&(__builtin_tolower(p[1])=='x')) {
 			mode=16;
 			p=&p[2];
-		} else if (p[0]=='0') {
+		} else if ((p[0]=='0')&&(p[1]!=0)) {
 			mode=8;
 			p=&p[1];
 		} else {

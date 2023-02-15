@@ -341,7 +341,7 @@ static int back_cursor(int fd) {
 #define STATE_C_MULTI  1
 #define STATE_C_ARROW  2
 
-static char history[40][4];
+static char history[8][80];
 static int h_ix;
 
 int readline_r(int fd, char *prompt, char *buf, int buf_size) {
@@ -379,6 +379,7 @@ int readline_r(int fd, char *prompt, char *buf, int buf_size) {
 				break;
 			}
 			case 0xd:
+				if (bix_max>bix) bix=bix_max;
 				buf[bix]=0;
 				if ((bix<80)&&(bix>0)&&
 					(h_ix==tmp_h_ix)) {
@@ -392,6 +393,7 @@ int readline_r(int fd, char *prompt, char *buf, int buf_size) {
 				break;
 			default: {
 				int ins=0;
+				tmp_h_ix=h_ix;
 				if (bix<bix_max) {
 					__builtin_memmove(&buf[bix+1],
 								&buf[bix],
@@ -407,7 +409,11 @@ int readline_r(int fd, char *prompt, char *buf, int buf_size) {
 				if (bix>bix_max) bix_max=bix;
 				io_write(fd,(char *)&ch,1);
 				if (ins) {
+					int i;
 					io_write(fd,&buf[bix],bix_max-bix);
+					for(i=0;i<bix_max-bix;i++) {
+						back_cursor(fd);
+					}
 				}
 			}
 		}
@@ -430,6 +436,8 @@ handle_arrow:
 				char space=' ';
 				if ((tmp_h_ix>0) &&
 					((tmp_h_ix-1)>(h_ix-8))) {
+					buf[bix]=0;
+					__builtin_strcpy(history[tmp_h_ix&0x7],buf);
 					tmp_h_ix--;
 					while(bix) {
 						back_cursor(fd);

@@ -10,7 +10,7 @@ $(USR_LIB):
 	mkdir $@
 
 $(USR_LIB)/usrlib.o: $(OBJECTS)
-	$(LD) -r -o $@ $^ $(USR_LIB)/syscall_lib.o
+	$(LD) -r -o $@ $^ $(USR_LIB)/syscall_lib.o $(USR_LIB)/ffs.o
 
 usrlib.o: $(OBJECTS)
 
