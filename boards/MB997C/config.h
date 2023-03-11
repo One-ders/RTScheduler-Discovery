@@ -1,6 +1,8 @@
 
 
-#define SYS_CLOCK	168000000
+//#define SYS_CLOCK	168000000
+#define SYS_CLK_HI	168000000
+#define SYS_CLK_LO	16000000
 
 #define MAX_TASKS	256
 #define TQ_SIZE         1024

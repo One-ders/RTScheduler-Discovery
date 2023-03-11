@@ -192,6 +192,9 @@ void set_svc_ret(void *sp, long int val);
 unsigned long int get_stacked_pc(struct task *t);
 unsigned long int get_usr_pc(struct task *t);
 
+extern volatile unsigned int power_mode;
+extern unsigned int SystemCoreClock;
+
 #ifdef MMU
 void *sys_sbrk(struct task *t, long int incr);
 int sys_brk(struct task *t, void *nbrk);
@@ -202,7 +205,7 @@ int sys_brk(struct task *t, void *nbrk);
 
 
 
-void *sys_sleep(unsigned int ms);
+//void *sys_sleep(unsigned int ms); does not seem to be used, remove ?
 void *sys_sleepon(struct blocker *so, unsigned int *ms_sleep);
 void *sys_wakeup(struct blocker *so);
 
@@ -307,6 +310,7 @@ struct driver_ops {
 	int (*control)(struct device_handle *, int cmd, void *, int len);
 	int (*init)(void *driver_instance);
 	int (*start)(void *driver_instance);
+	int (*clk_update)(void *driver_instance, int hz);
 };
 
 struct driver {
@@ -334,6 +338,9 @@ struct device_handle *driver_user_get_udata(struct device_handle *root);
 
 void driver_user_put_udata(struct device_handle *root,
 				struct device_handle *dh);
+
+int driver_prep_clk_update(int hz);
+int driver_do_clk_update(int hz);
 
 #if 0
 #define INIT_FUNC(a) void *init_func_##a __attribute__((section(".init_funcs"))) = a

@@ -1,7 +1,8 @@
 
 
 //#define SYS_CLOCK	100000000
-#define SYS_CLOCK	84000000   // PLL config
+#define SYS_CLK_LO	16000000   // lp clock
+#define SYS_CLK_HI	96000000   // PLL config
 
 
 #define MAX_TASKS	256
@@ -45,15 +46,6 @@
 #define LED_PORT	GPIO_PC
 #define LED_PORT_PINS 	13
 #define LED_BLUE	1
-
-#ifndef SYS_CONSOLE_DEV
-//#define SYS_CONSOLE_DEV		"usart0"
-#define SYS_CONSOLE_DEV		"usb_serial0"
-#endif
-#ifndef USER_CONSOLE_DEV
-//#define USER_CONSOLE_DEV	"usart0"
-#define USER_CONSOLE_DEV	"usb_serial0"
-#endif
 
 #if 0
 /* Cec */

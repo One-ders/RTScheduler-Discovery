@@ -154,6 +154,13 @@ static int led_start(void *inst) {
 		ps.pins|=(1<<((pins>>(i*4))&0xf));
 	}
 	rc=pindrv->ops->control(pin_dh,GPIO_BUS_ASSIGN_PINS,&ps,sizeof(ps));
+
+	// start with leds off
+#ifdef BLACKPILL
+	pindrv->ops->control(pin_dh, GPIO_BUS_SET_BITS, &ps.pins, sizeof(ps.pins));
+#else
+	pindrv->ops->control(pin_dh, GPIO_BUS_CLR_BITS, &ps.pins, sizeof(ps.pins));
+#endif
 	started=1;
 	return rc;
 }

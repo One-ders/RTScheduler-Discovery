@@ -79,7 +79,7 @@ void put_page(void *p) {
 	set_free(free_page_map,PHYS2PAGE(p));
 }
 
-unsigned int  SystemCoreClock = SYS_CLOCK;
+unsigned int  SystemCoreClock = SYS_CLK_LO;
 
 void config_sys_tic(unsigned int ms) {
 	unsigned int perSec=1000/ms;

@@ -1,0 +1,5 @@
+
+
+#define GET_POWER_MODE	0x1000
+#define GET_SYS_CLOCK	0x1001
+#define SET_POWER_MODE	0x1002

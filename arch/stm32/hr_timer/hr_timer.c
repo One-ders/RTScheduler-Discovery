@@ -288,7 +288,6 @@ static int hr_timer_set(struct timer_user *u, int val) {
 }
 
 static int hr_timer_probe(struct timer_user *u) {
-	int left;
 	if (!u->out_tic) return -1;
 	return (u->out_tic-get_current_hr_tic());
 }
@@ -357,11 +356,33 @@ static int hr_timer_control(struct device_handle *dh, int cmd, void *arg, int le
 	return 0;
 }
 
-static int hr_timer_init(void *inst) {
+static int setup_timer(unsigned int hz) {
+
+	if (!hz) return 0;
+	if (hz && (hz<84000000)) {
+		// stop clock to tim10, slow cpu cant drive hr_timer
+		RCC->APB2ENR &= ~RCC_APB2ENR_TIM10EN;
+		sys_printf("hr_timer: disable for low clock speed\n");
+		return 0;
+	}
 
 	RCC->APB2ENR |= RCC_APB2ENR_TIM10EN;
-	/* at 168Mhz, prescaler count of 167 give 1uS timer tics */
-	TIM10->PSC=167;   /* prescaling 4Mhz to 1 Mhz should probably be 3...*/
+	switch(hz) {
+		case 84000000:
+			TIM10->PSC=83;
+			break;
+		case 96000000:
+			TIM10->PSC=95;
+			break;
+		case 168000000:
+			TIM10->PSC=167;
+			break;
+		default:
+			// stop clock to tim10, slow cpu cant drive hr_timer
+			RCC->APB2ENR &= ~RCC_APB2ENR_TIM10EN;
+			sys_printf("hr_timer: disable unknown speed %d hz\n",hz);
+			return 0;
+	}
 	TIM10->CNT=0;
 	TIM10->ARR=60000; /* 60000 gives 60 mS */
 	tic_step=60000;
@@ -373,8 +394,23 @@ static int hr_timer_init(void *inst) {
 	return 0;
 }
 
+static int hr_timer_init(void *inst) {
+
+/////	/* Blackpill configured to 84Mhz, prescaler count of 84 give 1uS timer tics */
+/////	TIM10->PSC=83;   /* */
+	setup_timer(SystemCoreClock);
+	return 0;
+}
+
 
 static int hr_timer_start(void *inst) {
+
+	return 0;
+}
+
+static int hr_timer_clk_update(void *instance, int hz) {
+	if (!hz) return 0;
+	setup_timer(hz);
 	return 0;
 }
 
@@ -385,7 +421,8 @@ static struct driver_ops hr_timer_ops = {
 	hr_timer_close,
 	hr_timer_control,
 	hr_timer_init,
-	hr_timer_start
+	hr_timer_start,
+	hr_timer_clk_update
 };
 
 

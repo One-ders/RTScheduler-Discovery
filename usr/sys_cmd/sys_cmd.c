@@ -37,6 +37,7 @@
 #include <sys_env.h>
 #include <procps.h>
 #include <devls.h>
+#include <pwr_mgr_drv.h>
 
 #include <syslog.h>
 
@@ -46,6 +47,11 @@ struct dents {
 
 #define READDIR 10
 #define DYNOPEN 11
+
+static int isprint(int c) {
+	return (unsigned)c-0x20 < 0x5f;
+}
+
 
 static char toNum(int state) {
         switch(state) {
@@ -155,6 +161,7 @@ static int kmem_fnc(int argc, char **argv, struct Env *env) {
 	int fd=io_open("kmem");
 	int rc=0;
 	int r=0,w=0;
+	int b_mode=0;
 	struct getopt_data gd;
 	char *nptr;
 	int opt;
@@ -167,7 +174,7 @@ static int kmem_fnc(int argc, char **argv, struct Env *env) {
 
 	getopt_data_init(&gd);
 
-	while((opt=getopt_r(argc,argv,"r:w:",&gd))!=-1) {
+	while((opt=getopt_r(argc,argv,"r:w:b",&gd))!=-1) {
 		switch(opt) {
 			case 'r':
 				nptr=gd.optarg;
@@ -190,6 +197,9 @@ static int kmem_fnc(int argc, char **argv, struct Env *env) {
 				}
 				w=1;
 				fprintf(env->io_fd,"write addr %x\n",address);
+				break;
+			case 'b':
+				b_mode=1;
 				break;
 			default: {
 				fprintf(env->io_fd, "kmem arg error %c, use -r addr len, or -w addr val len\n",opt);
@@ -220,19 +230,37 @@ static int kmem_fnc(int argc, char **argv, struct Env *env) {
 			goto out;
 		}
 
-		nwords=((nbytes+3)>>2);
-		while(i<nwords) {
-			fprintf(env->io_fd,"%08x:\t",address+(i<<2));
-			for(j=0;(j<4)&&i<nwords;i++,j++) {
-				unsigned int vbuf;
-				rc=io_read(fd,&vbuf,4);
-				if (rc<0) {
-					rc=-11;
-					goto out;
+		if (b_mode) {
+			while(i<nbytes) {
+				char cstr[]="*________________*";
+				fprintf(env->io_fd,"%08x:\t",address+i);
+				for(j=0;(j<16)&&i<nbytes;i++,j++) {
+					unsigned char vbuf;
+					rc=io_read(fd,&vbuf,1);
+					if (rc<0) {
+						rc=-11;
+						goto out;
+					}
+					fprintf(env->io_fd,"%02x ", vbuf);
+					cstr[j+1]=isprint(vbuf)?vbuf:'_';
 				}
-				fprintf(env->io_fd,"%08x ", vbuf);
+				fprintf(env->io_fd,"%s\n",cstr);
 			}
-			fprintf(env->io_fd,"\n");
+		} else {
+			nwords=((nbytes+3)>>2);
+			while(i<nwords) {
+				fprintf(env->io_fd,"%08x:\t",address+(i<<2));
+				for(j=0;(j<4)&&i<nwords;i++,j++) {
+					unsigned int vbuf;
+					rc=io_read(fd,&vbuf,4);
+					if (rc<0) {
+						rc=-11;
+						goto out;
+					}
+					fprintf(env->io_fd,"%08x ", vbuf);
+				}
+				fprintf(env->io_fd,"\n");
+			}
 		}
 	} else if (w) {
 		unsigned long int value;
@@ -528,6 +556,72 @@ static int sys_timer_test(int argc, char **argv, struct Env *env) {
 	return 0;
 }
 
+static int pwr_mgr_test(int argc, char **argv, struct Env *env) {
+	int fd=env->io_fd;
+	int rc=0;
+	int pm_fd;
+
+	if (argc<2) {
+		fprintf(fd,"need some arguments\n");
+		return -1;
+	}
+
+	pm_fd=io_open("pwr_mgr");
+	if (pm_fd<0) {
+		fprintf(fd, "failed to open pwr_mgr driver\n");
+		rc=-1;
+		goto out1;
+	}
+	if (strcmp(argv[1],"get")==0) {
+		unsigned int pm;
+		unsigned int clk;
+		if (io_control(pm_fd, GET_POWER_MODE, &pm, sizeof(pm))<0) {
+			fprintf(fd, "get error back from GET_POWER_MODE\n");
+			rc=-1;
+			goto out;
+		}
+		if (io_control(pm_fd, GET_SYS_CLOCK, &clk, sizeof(clk))<0) {
+			fprintf(fd, "get error back from GET_SYS_CLOCK\n");
+			rc=-1;
+			goto out;
+		}
+
+		fprintf(fd, "power mode control word=%x\n", pm);
+		fprintf(fd, "CW bit 0 is %d, meaning %s\n", pm&1, (pm&1)?"high speed":"low speed");
+		fprintf(fd, "CW bit 1&2 is %d, meaning %s\n", pm&3, (pm&2)?"idle Wait for irq":
+									(pm&3)?"idle Wait for event":
+									"idle spin");
+		fprintf(fd, "CW bit 3 is %d, meaning %s\n", pm&8, (pm&8)?"Deepsleep":"lightSleep");
+		fprintf(fd, "system clock is=%d Mhz\n", clk/(1000*1000));
+	} else if (strcmp(argv[1],"set")==0) {
+		unsigned int pm;
+		if (argc<3) {
+			fprintf(fd, "need a power control word as arg\n");
+			rc=-1;
+			goto out;
+		}
+
+		pm=strtoul(argv[2],0,0);
+		if (io_control(pm_fd, SET_POWER_MODE, &pm, sizeof(pm))<0) {
+			fprintf(fd, "got error for SET_POWER_MODE\n");
+			rc=-1;
+			goto out;
+		}
+	} else {
+		fprintf(fd, "pwr_mgr: unknow sub command %s\n", argv[1]);
+		rc=-1;
+	}
+
+out:
+	io_close(pm_fd);
+out1:
+
+	if (fd!=env->io_fd) {
+		io_close(fd);
+	}
+
+	return rc;
+}
 
 
 
@@ -557,6 +651,7 @@ static struct cmd cmd_root[] = {
 		{"ext_mem_test",ememt_fnc},
 		{"hr_timer",hr_timer_test},
 		{"sys_timer",sys_timer_test},
+		{"pwr_mgr",pwr_mgr_test},
 		{0,0}
 };
 
@@ -570,7 +665,13 @@ void main(void *dum) {
 	int fd=io_open(dum);
 	struct Env env;
 	static int u_init=0;
-	if (fd<0) return;
+	if (fd<0) {
+		init_pkg();
+		while(1) {
+			sleep(1000000);
+		}
+		return;
+	}
 
 	env.io_fd=fd;
 	fprintf(fd,"Starting sys_mon\n");

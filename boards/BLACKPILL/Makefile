@@ -3,6 +3,7 @@ DRIVERS+=stddrv.o
 DRIVERS+=gpio_drv.o
 DRIVERS+=led_drv.o
 DRIVERS+=usart_drv.o
+DRIVERS+=pwr_mgr_drv.o
 DRIVERS+=usb_core_drv.o
 DRIVERS+=usb_serial_drv.o
 DRIVERS+=hr_timer.o
@@ -69,10 +70,14 @@ myCore.bin: myCore
 rel: myCore
 	tar -cvzf krel-$(VERSION).tgz $(RELFILES)
 
-myCore: $(BASEBUILD_INCL) os version stm32f411 stm32 $(DTARGETS) usr.bin.o
-	$(CC) $(LDFLAGS) -o $@ $(OBJ)/os/init_sect.o \
+
+
+
+myCore: $(BASEBUILD_INCL) os system_params.o version stm32f411 stm32 $(DTARGETS) usr.bin.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJ)/os/init_sect.o \
 				$(OBJ)/version.c \
 				$(OBJ)/os/os.o \
+				./system_params.o \
 				$(OBJ)/arch/stm32/stm32f411/stm32f411.o \
 				$(OBJ)/arch/stm32/stm32.o \
 				$(DOBJS) \
@@ -92,6 +97,7 @@ hr_timer: $(OBJ)/drv_obj/hr_timer.o
 gpio_drv: $(OBJ)/drv_obj/gpio_drv.o
 led_drv: $(OBJ)/drv_obj/led_drv.o
 usart_drv: $(OBJ)/drv_obj/usart_drv.o
+pwr_mgr_drv: $(OBJ)/drv_obj/pwr_mgr_drv.o
 
 ifeq ($(KREL),)
 includes: $(BDIR)/incl $(BDIR)/usr/incl
@@ -189,6 +195,8 @@ $(OBJ)/drivers/usb_serial: $(TOP)/drivers/usb_serial
 $(OBJ)/arch/stm32/stm32.o: $(OBJ)/arch/stm32
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 
+system_params.o: system_params.c
+
 $(OBJ)/arch/stm32: $(TOP)/arch/stm32
 	mkdir -p $@
 	lndir $< $@
@@ -243,14 +251,14 @@ $(OBJ)/arch/stm32/%: $(TOP)/arch/stm32/%
 	lndir $< $@
 
 
-$(OBJ)/drv_obj/hr_timer.o: stm32f411 $(OBJ)/arch/stm32/stm32f411/hr_timer/hr_timer.o
+$(OBJ)/drv_obj/hr_timer.o: $(OBJ)/arch/stm32/hr_timer/hr_timer.o
 	mkdir -p $(OBJ)/drv_obj
-	cp  $(OBJ)/arch/stm32/stm32f411/hr_timer/hr_timer.o $@
+	cp  $(OBJ)/arch/stm32/hr_timer/hr_timer.o $@
 
-$(OBJ)/arch/stm32/stm32f411/hr_timer/hr_timer.o: $(OBJ)/arch/stm32/stm32f411/hr_timer
+$(OBJ)/arch/stm32/hr_timer/hr_timer.o: $(OBJ)/arch/stm32/hr_timer
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 
-$(OBJ)/arch/stm32/stm32f411/hr_timer: $(TOP)/arch/stm32/stm32f411/hr_timer
+$(OBJ)/arch/stm32/hr_timer: $(TOP)/arch/stm32/hr_timer
 	mkdir -p $@
 	lndir $< $@
 
@@ -261,6 +269,7 @@ clean:
 	rm -rf incl
 	rm -rf usr
 	rm -rf krel*
+	rm -f *.o
 	rm  -f ../../incl/io.h
 	rm  -f ../../incl/sys.h
 endif

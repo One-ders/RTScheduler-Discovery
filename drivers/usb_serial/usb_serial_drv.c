@@ -948,9 +948,13 @@ static int usb_serial_putc(struct user_data *ud, int c) {
 		return -DRV_AGAIN;
 	}
 	if (!tx_started) {
+		restore_cpu_flags(cpu_flags);
+		return 0;
+#if 0
 		ud->ev_flags|=EV_WRITE;
 		restore_cpu_flags(cpu_flags);
 		return -DRV_AGAIN;
+#endif
 	}
 //	sys_printf("usb write(%d): tx_in %d\n", usb_data->currbuf,usb_data->tx_in);
 	usb_data->tx_buf[IX(usb_data->tx_in)]=c;

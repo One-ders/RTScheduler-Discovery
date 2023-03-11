@@ -33,8 +33,16 @@
 //#include "stm32/stm32f407.h"
 #include "io.h"
 #include "sys.h"
+#include "trace.h"
+#include "system_params.h"
 
 #include <string.h>
+
+#ifdef KERNEL_TRACE
+unsigned short tb[TB_SIZE];
+unsigned short tb_i;
+unsigned short tb_o;
+#endif
 
 unsigned int sys_irqs;
 
@@ -90,6 +98,8 @@ void SysTick_Handler(void) {
 	struct tq *tqp;
 	int p=5;
 
+	TRACE_ENTER(SYSTICK_HANDLER);
+
 	current->active_tics++;
 	sys_irqs++;
 	tq_tic++;
@@ -113,6 +123,14 @@ void SysTick_Handler(void) {
 			if (prio>MAX_PRIO) prio=MAX_PRIO;
 			ASSERT(t->state!=TASK_STATE_RUNNING);
 			cpu_flags=disable_interrupts();
+			if (t==current) {
+				sys_printf("time job==current, %s\n", current->name);
+				ASSERT(0);
+			}
+			if (t->state==TASK_STATE_RUNNING) {
+				sys_printf("time job running, %s\n", t->name);
+				ASSERT(0);
+			}
 			t->state=TASK_STATE_READY;
 			t->next=0;
 			b->next=0;
@@ -135,14 +153,19 @@ void SysTick_Handler(void) {
 
 	if (p<GET_PRIO(current)) {
 		switch_on_return();
+		TRACE_EXIT(SYSTICK_HANDLER,1);
 		return;
 	}
 
 	if (GET_TMARK(current) && ready[GET_PRIO(current)]) {
 		DEBUGP(DLEV_SCHED,"time slice: switch out %s, switch in %s\n", current->name, ready[GET_PRIO(current)]->name);
 		switch_on_return();
+		TRACE_EXIT(SYSTICK_HANDLER,2);
 		return;
 	}
+//	if (GET_PRIO(current)==1) {
+//		sys_printf("%t high prio process(%s) is hogging cpu tic is %d\n", current->name, tq_tic);
+//	}
 	SET_TMARK(current);
 
 	if (task_cemetery) {
@@ -157,6 +180,7 @@ void SysTick_Handler(void) {
 			}
 		}
 	}
+	TRACE_EXIT(SYSTICK_HANDLER,3);
 	return;
 }
 
@@ -197,6 +221,7 @@ struct user_fd fd_tab[FDTAB_SIZE] = {{&console,0,}, };
 
 int get_user_fd(struct driver *d, struct device_handle *dh) {
 	int i;
+	TRACE_ENTER(GET_USER_FD);
 	for(i=1;i<FDTAB_SIZE;i++) {
 		if (!fd_tab[i].driver) {
 			fd_tab[i].driver=d;
@@ -204,15 +229,18 @@ int get_user_fd(struct driver *d, struct device_handle *dh) {
 
 			fd_tab[i].next=current->fd_list;
 			current->fd_list=&fd_tab[i];
+			TRACE_EXIT(GET_USER_FD,1);
 			return i;
 		}
 	}
+	TRACE_EXIT(GET_USER_FD,2);
 	return -1;
 }
 
 
 int close_drivers(void) {
 	struct user_fd *fdl=current->fd_list;
+	TRACE_ENTER(CLOSE_DRIVERS);
 
 	current->fd_list=0;
 	while(fdl) {
@@ -224,24 +252,28 @@ int close_drivers(void) {
 		}
 		fdl=fdlnext;
 	}
+	TRACE_EXIT(CLOSE_DRIVERS,1);
 	return 0;
 }
 
 int detach_driver_fd(struct user_fd *fd) {
 	struct user_fd *fdl=current->fd_list;
 	struct user_fd **fdprev=&current->fd_list;
+	TRACE_ENTER(DETACH_DRIVER_FD);
 
 	while(fdl) {
 		if (fdl==fd) {
 			(*fdprev)=fd->next;
 			fd->next=0;
 			fd->driver=0;
+			TRACE_EXIT(DETACH_DRIVER_FD,1);
 			return 0;
 		}
 		fdprev=&fdl->next;
 		fdl=fdl->next;
 	}
 
+	TRACE_EXIT(DETACH_DRIVER_FD,2);
 	return -1;
 }
 
@@ -250,6 +282,7 @@ static void sys_timer_remove(struct blocker *b);
 static int sys_drv_wakeup(struct device_handle *dh, int ev, void *user_ref) {
 	struct task *task=(struct task *)user_ref;
 	int fd=dh->user_data1;
+	TRACE_ENTER(SYS_DRV_WAKEUP);
 
 	if (task->sel_data_valid) {
 		DEBUGP(DLEV_SCHED,"wakeup descriptor %d in task %s for ev %d\n", fd, task->name,ev);
@@ -266,6 +299,7 @@ static int sys_drv_wakeup(struct device_handle *dh, int ev, void *user_ref) {
 	} else {
 		if (!(task->blocker.ev&ev)) {
 			sys_printf("sys_drv_wakeup: masked. b.ev(%x) r.ev(%x)\n",task->blocker.ev,ev);
+			TRACE_EXIT(SYS_DRV_WAKEUP,1);
 			return 0;
 		}
 	}
@@ -285,6 +319,7 @@ static int sys_drv_wakeup(struct device_handle *dh, int ev, void *user_ref) {
 		sys_wakeup(&task->blocker);
 	}
 out:
+	TRACE_EXIT(SYS_DRV_WAKEUP,2);
 	return 0;
 }
 
@@ -292,6 +327,7 @@ static int destroy_thread(struct task *t);
 
 void *handle_syscall(unsigned long int *svc_sp) {
 	unsigned int svc_number;
+	TRACE_ENTER(HANDLE_SYSCALL);
 
 	sys_irqs++;
 	/*
@@ -312,6 +348,7 @@ void *handle_syscall(unsigned long int *svc_sp) {
 
 			if (!t) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,1);
 				return 0;
 			}
 
@@ -320,6 +357,7 @@ void *handle_syscall(unsigned long int *svc_sp) {
 				sys_printf("proc table full\n");
 				put_page(t);
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,2);
 				return 0;
 			}
 
@@ -328,6 +366,7 @@ void *handle_syscall(unsigned long int *svc_sp) {
 			if (tca->prio>MAX_PRIO) {
 				unmap_tmp_stack_page();
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,3);
 				return 0;
 			}
 			__builtin_memset(estack,0,2048);
@@ -340,7 +379,7 @@ void *handle_syscall(unsigned long int *svc_sp) {
 			}
 			t->asp=current->asp;
 			t->asp->ref++;
-			setup_return_stack(t,(void *)stackp,(unsigned long int)tca->fnc,__usr_svc_destroy_self,uval,8);
+			setup_return_stack(t,(void *)stackp,(unsigned long int)tca->fnc,(unsigned long int)__usr_svc_destroy_self,(void *)uval,8);
 
 			t->state=TASK_STATE_READY;
 			t->name=tca->name;
@@ -364,6 +403,7 @@ void *handle_syscall(unsigned long int *svc_sp) {
 			}
 
 			set_svc_ret(svc_sp,0);
+			TRACE_EXIT(HANDLE_SYSCALL,4);
 			return 0;
 			break;
 		}
@@ -371,7 +411,10 @@ void *handle_syscall(unsigned long int *svc_sp) {
 			struct task *t1=troot;
 			struct task **tprev=&troot;
 
-			if (current->state!=TASK_STATE_RUNNING) return 0;
+			if (current->state!=TASK_STATE_RUNNING) {
+				TRACE_EXIT(HANDLE_SYSCALL,5);
+				return 0;
+			}
 
 			while(t1) {
 				struct task *tnext=t1->next2;
@@ -385,11 +428,13 @@ void *handle_syscall(unsigned long int *svc_sp) {
 				t1=tnext;
 			}
 			sys_printf("error at destroy thread\n");
+			TRACE_EXIT(HANDLE_SYSCALL,6);
 			return 0;
 
 done:
 			DEBUGP(DLEV_SCHED,"destroy self task: %s\n", current->name);
 			switch_on_return();
+			TRACE_EXIT(HANDLE_SYSCALL,7);
 			return 0;
 		}
 		case SVC_SLEEP: {
@@ -399,6 +444,7 @@ done:
 			current->blocker.driver=0;
 			sys_sleepon(&current->blocker,(unsigned int *)&tout);
 			set_svc_ret(svc_sp,tout);
+			TRACE_EXIT(HANDLE_SYSCALL,8);
 			return 0;
 			break;
 		}
@@ -411,12 +457,14 @@ done:
 			if (!drv) {
 				set_svc_ret(svc_sp,-1);
 				sys_printf("SVC_IO_OPEN: return -1 no drv:\n");
+				TRACE_EXIT(HANDLE_SYSCALL,9);
 				return 0;
 			}
 			ufd=get_user_fd(((struct driver *)0xffffffff),0);
 			if (ufd<0) {
 				set_svc_ret(svc_sp,-1);
 //				sys_printf("SVC_IO_OPEN: return -1 get user\n");
+				TRACE_EXIT(HANDLE_SYSCALL,10);
 				return 0;
 			}
 			dh=drv->ops->open(drv->instance,sys_drv_wakeup,current);
@@ -424,6 +472,7 @@ done:
 				detach_driver_fd(&fd_tab[ufd]);
 				set_svc_ret(svc_sp,-1);
 				sys_printf("SVC_IO_OPEN: return -1 drv open\n");
+				TRACE_EXIT(HANDLE_SYSCALL,11);
 				return 0;
 			}
 			dh->user_data1=ufd;
@@ -431,12 +480,14 @@ done:
 			fd_tab[ufd].dev_handle=dh;
 			fd_tab[ufd].flags=0;
 			set_svc_ret(svc_sp,ufd);
+			TRACE_EXIT(HANDLE_SYSCALL,12);
 			return 0;
 		}
 		case SVC_IO_READ: {
 			int fd=(int)get_svc_arg(svc_sp,0);
 			if (fd<0) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,13);
 				return 0;
 			}
 			{
@@ -446,6 +497,7 @@ done:
 			struct device_handle *dh=fdd->dev_handle;
 			if (!driver) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,14);
 				return 0;
 			}
 
@@ -463,6 +515,7 @@ done:
 			}
 			current->blocker.ev=0;
 			set_svc_ret(svc_sp,rc);
+			TRACE_EXIT(HANDLE_SYSCALL,15);
 			return 0;
 			}
 		}
@@ -470,6 +523,7 @@ done:
 			int fd=(int)get_svc_arg(svc_sp,0);
 			if (fd<0) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,16);
 				return 0;
 			}
 			{
@@ -480,6 +534,7 @@ done:
 			int done=0;
 			if (!driver) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,17);
 				return 0;
 			}
 
@@ -492,6 +547,7 @@ again:
 			if (rc==-DRV_AGAIN&&(!(fdd->flags&O_NONBLOCK))) {
 				current->blocker.driver=driver;
 				sys_sleepon(&current->blocker,0);
+				TRACE_EXIT(HANDLE_SYSCALL,18);
 				goto again;
 			}
 
@@ -510,6 +566,7 @@ again:
 				} else {
 					set_svc_ret(svc_sp,result);
 				}
+				TRACE_EXIT(HANDLE_SYSCALL,19);
 				return 0;
 			}
 			if (rc>=0) {
@@ -524,6 +581,7 @@ again:
 					sys_printf("clearing old wake\n");
 				}
 				set_svc_ret(svc_sp,rc);
+				TRACE_EXIT(HANDLE_SYSCALL,20);
 				return 0;
 			}
 
@@ -533,6 +591,7 @@ again:
 				sys_printf("clearing old wake\n");
 			}
 			set_svc_ret(svc_sp,done);
+			TRACE_EXIT(HANDLE_SYSCALL,21);
 			return 0;
 			}
 		}
@@ -540,6 +599,7 @@ again:
 			int	fd	=(int)get_svc_arg(svc_sp,0);
 			if (fd<0) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,22);
 				return 0;
 			}
 			{
@@ -551,6 +611,7 @@ again:
 
 			if (!driver) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,23);
 				return 0;
 			}
 
@@ -561,6 +622,7 @@ again:
 				ufd=get_user_fd(((struct driver *)0xffffffff),0);
 				if (ufd<0) {
 					set_svc_ret(svc_sp,-1);
+					TRACE_EXIT(HANDLE_SYSCALL,24);
 					return 0;
 				}
 
@@ -568,6 +630,7 @@ again:
 				if (rc<0) {
 					detach_driver_fd(&fd_tab[ufd]);
 					set_svc_ret(svc_sp,-1);
+					TRACE_EXIT(HANDLE_SYSCALL,25);
 					return 0;
 				}
 				doargs.dh->user_data1=ufd;
@@ -575,15 +638,18 @@ again:
 				fd_tab[ufd].dev_handle=doargs.dh;
 				fd_tab[ufd].flags=0;
 				set_svc_ret(svc_sp,ufd);
+				TRACE_EXIT(HANDLE_SYSCALL,26);
 				return 0;
 			}
 
 			if (get_svc_arg(svc_sp,1)==F_SETFL) {
 				fdd->flags=get_svc_arg(svc_sp,2);
+				TRACE_EXIT(HANDLE_SYSCALL,27);
 				return 0;
 			}
 			if (get_svc_arg(svc_sp,1)==F_GETFL) {
 				set_svc_ret(svc_sp,fdd->flags);
+				TRACE_EXIT(HANDLE_SYSCALL,28);
 				return 0;
 			}
 			if (get_svc_arg(svc_sp,1)==IO_POLL) {
@@ -599,11 +665,13 @@ poll_again:
 				}
 				current->blocker.ev=0;
 				set_svc_ret(svc_sp,rc);
+				TRACE_EXIT(HANDLE_SYSCALL,29);
 				return 0;
 			}
 			rc=driver->ops->control(dh,get_svc_arg(svc_sp,1),(void *)get_svc_arg(svc_sp,2),get_svc_arg(svc_sp,3));
 			current->blocker.ev=0;
 			set_svc_ret(svc_sp,rc);
+			TRACE_EXIT(HANDLE_SYSCALL,30);
 			return 0;
 			}
 		}
@@ -611,6 +679,7 @@ poll_again:
 			int fd=(int)get_svc_arg(svc_sp,0);
 			if (fd<0) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,31);
 				return 0;
 			}
 			{
@@ -619,10 +688,12 @@ poll_again:
 			int rc;
 			if (!driver) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,32);
 				return 0;
 			}
 			rc=driver->ops->control(dh,IO_LSEEK,(void *)get_svc_arg(svc_sp,1),get_svc_arg(svc_sp,2));
 			set_svc_ret(svc_sp,rc);
+			TRACE_EXIT(HANDLE_SYSCALL,33);
 			return 0;
 			}
 		}
@@ -630,10 +701,12 @@ poll_again:
 			int fd=(int)get_svc_arg(svc_sp,0);
 			if (fd<0) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,34);
 				return 0;
 			}
 			if (!fd) {
 				sys_printf("someone tried to close the console\n");
+				TRACE_EXIT(HANDLE_SYSCALL,35);
 				return 0;
 			}
 			{
@@ -642,6 +715,7 @@ poll_again:
 			int rc;
 			if (!driver) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,36);
 				return 0;
 			}
 
@@ -649,6 +723,7 @@ poll_again:
 
 			rc=driver->ops->close(dh);
 			set_svc_ret(svc_sp,rc);
+			TRACE_EXIT(HANDLE_SYSCALL,37);
 			return 0;
 			}
 		}
@@ -681,10 +756,12 @@ poll_again:
 						if (driver->ops->control(dh,IO_POLL,(void *)EV_WRITE,0)) {
 							*sel_args->wfds=(1<<i);
 							set_svc_ret(svc_sp,1);
+							TRACE_EXIT(HANDLE_SYSCALL,38);
 							return 0;
 						}
 					} else {
 						set_svc_ret(svc_sp,-1);
+						TRACE_EXIT(HANDLE_SYSCALL,39);
 						return 0;
 					}
 				}
@@ -698,10 +775,12 @@ poll_again:
 						if (driver->ops->control(dh,IO_POLL,(void *)EV_READ,0)) {
 							*sel_args->rfds=(1<<i);
 							set_svc_ret(svc_sp,1);
+							TRACE_EXIT(HANDLE_SYSCALL,40);
 							return 0;
 						}
 					} else {
 						set_svc_ret(svc_sp,-1);
+						TRACE_EXIT(HANDLE_SYSCALL,41);
 						return 0;
 					}
 				}
@@ -715,10 +794,12 @@ poll_again:
 						if (driver->ops->control(dh,IO_POLL,(void *)EV_STATE,0)) {
 							*sel_args->stfds=(1<<i);
 							set_svc_ret(svc_sp,1);
+							TRACE_EXIT(HANDLE_SYSCALL,42);
 							return 0;
 						}
 					} else {
 						set_svc_ret(svc_sp,-1);
+						TRACE_EXIT(HANDLE_SYSCALL,43);
 						return 0;
 					}
 				}
@@ -736,6 +817,7 @@ poll_again:
 			*sel_args->wfds=current->sel_data.wfds;
 			*sel_args->stfds=current->sel_data.stfds;
 			set_svc_ret(svc_sp,current->sel_data.nfds);
+			TRACE_EXIT(HANDLE_SYSCALL,44);
 			return 0;
 		}
 		case SVC_IO_MMAP: {
@@ -758,10 +840,11 @@ poll_again:
 				addr,len,prot,flags,fd,offset);
 			if (!driver) {
 				set_svc_ret(svc_sp,0);
+				TRACE_EXIT(HANDLE_SYSCALL,45);
 				return 0;
 			}
 			npages=((len-1)/PAGE_SIZE)+1;
-			paddr=driver->ops->control(dh,IO_MMAP,offset,len);
+			paddr=driver->ops->control(dh,IO_MMAP,(void *)offset,len);
 			vaddr=get_mmap_vaddr(current,len);
 
 			sys_printf("IO_MMAP: need %d pages, vaddr %x, paddr %x\n", npages, vaddr, paddr);
@@ -770,12 +853,14 @@ poll_again:
 				rc=mapmem(current,vaddr,paddr, MAP_NO_CACHE | MAP_WRITE);
 				if (rc<0) {
 					set_svc_ret(svc_sp,0);
+					TRACE_EXIT(HANDLE_SYSCALL,46);
 					return 0;
 				}
 				vaddr+=PAGE_SIZE;
 				paddr+=PAGE_SIZE;
 			}
 			set_svc_ret(svc_sp,start_vaddr);
+			TRACE_EXIT(HANDLE_SYSCALL,47);
 			return 0;
 		}
 		case SVC_BLOCK_TASK: {
@@ -783,6 +868,7 @@ poll_again:
 			struct task *t=lookup_task_for_name(name);
 			if (!t) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,48);
 				return 0;
 			}
 			if (t==current) {
@@ -811,6 +897,7 @@ poll_again:
 				DEBUGP(DLEV_SCHED,"blocking task: %s, current %s\n",t->name,current->name);
 			}
 			set_svc_ret(svc_sp,0);
+			TRACE_EXIT(HANDLE_SYSCALL,49);
 			return 0;
 		}
 		case SVC_UNBLOCK_TASK: {
@@ -821,12 +908,14 @@ poll_again:
 			int prio;
 			if (!t) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,50);
 				return 0;
 			}
 			prio=t->prio_flags&0xf;
 			if (prio>MAX_PRIO) prio=MAX_PRIO;
 			if (prio<MAX_PRIO) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,51);
 				return 0;
 			}
 
@@ -839,6 +928,7 @@ poll_again:
 				b=b->next;
 			}
 			set_svc_ret(svc_sp,-1);
+			TRACE_EXIT(HANDLE_SYSCALL,52);
 			return 0;
 set_ready:
 			DEBUGP(DLEV_SCHED,"unblocking task: %s, current %s\n",t->name,current->name);
@@ -852,6 +942,7 @@ set_ready:
 			ready_last[GET_PRIO(t)]=t;
 
 			set_svc_ret(svc_sp,0);
+			TRACE_EXIT(HANDLE_SYSCALL,53);
 			return 0;
 		}
 		case SVC_SETPRIO_TASK: {
@@ -861,10 +952,12 @@ set_ready:
 			struct task *t=lookup_task_for_name(name);
 			if (!t) {
 				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,54);
 				return 0;
 			}
 			if (prio>MAX_PRIO) {
 				set_svc_ret(svc_sp,-2);
+				TRACE_EXIT(HANDLE_SYSCALL,55);
 				return 0;
 			}
 			if (t==current) {
@@ -903,6 +996,7 @@ set_ready:
 				DEBUGP(DLEV_SCHED,"setprio task: name %s prio=%d, current %s\n",t->name,t->prio_flags,current->name);
 			}
 			set_svc_ret(svc_sp,0);
+			TRACE_EXIT(HANDLE_SYSCALL,56);
 			return 0;
 check_resched:
 			if (prio<curr_prio) {
@@ -910,6 +1004,7 @@ check_resched:
 				switch_on_return();
 			}
 			set_svc_ret(svc_sp,0);
+			TRACE_EXIT(HANDLE_SYSCALL,57);
 			return 0;
 		}
 		case SVC_SETDEBUG_LEVEL: {
@@ -923,6 +1018,7 @@ check_resched:
 #else
 			set_svc_ret(svc_sp,-1);
 #endif
+			TRACE_EXIT(HANDLE_SYSCALL,58);
 			return 0;
 		}
 		case SVC_REBOOT: {
@@ -931,10 +1027,12 @@ check_resched:
 				board_reboot();
 			}
 			set_svc_ret(svc_sp,-1);
+			TRACE_EXIT(HANDLE_SYSCALL,59);
 			return 0;
 		}
 		case SVC_GETTIC: {
 			set_svc_ret(svc_sp,tq_tic);
+			TRACE_EXIT(HANDLE_SYSCALL,60);
 			return 0;
 		}
 		case SVC_SBRK: {
@@ -945,6 +1043,7 @@ check_resched:
 #else
 			set_svc_ret(svc_sp,0);
 #endif
+			TRACE_EXIT(HANDLE_SYSCALL,61);
 			return 0;
 		}
 		case SVC_BRK: {
@@ -955,6 +1054,7 @@ check_resched:
 #else
 			set_svc_ret(svc_sp,-1);
 #endif
+			TRACE_EXIT(HANDLE_SYSCALL,62);
 			return 0;
 		}
 		default:
@@ -963,19 +1063,25 @@ check_resched:
 			while(1);
 			break;
 	}
+	TRACE_EXIT(HANDLE_SYSCALL,63);
 	return 0;
 }
 
 
-void *sys_sleep(unsigned int ms) {
+#if 0
+void *sys_sleep(unsigned int ms) {  // for drivers that need to block calling thread
+	TRACE_ENTER(SYS_SLEEP);
 	current->blocker.driver=0;
 	sys_sleepon(&current->blocker,&ms);
+	TRACE_EXIT(SYS_SLEEP,1);
 	return 0;
 }
+#endif
 
 struct tq *sys_timer(struct blocker *so, unsigned int ms) {
 	int wtic=(ms/10)+tq_tic;
 	struct tq *tout=&tq[wtic%TQ_SIZE];
+	TRACE_ENTER(SYS_TIMER);
 	so->wakeup_tic=wtic;
 	so->next=0;
 	if (!tout->tq_out_first) {
@@ -985,6 +1091,7 @@ struct tq *sys_timer(struct blocker *so, unsigned int ms) {
 		tout->tq_out_last->next=so;
 		tout->tq_out_last=so;
 	}
+	TRACE_EXIT(SYS_TIMER,1);
 	return tout;
 }
 
@@ -993,6 +1100,7 @@ static void sys_timer_remove(struct blocker *b) {
 	struct blocker *bp=tout->tq_out_first;
 	struct blocker **bpp=&tout->tq_out_first;
 	struct blocker *bprev=0;
+	TRACE_ENTER(SYS_TIMER_REMOVE);
 
 	while(bp) {
 		if (bp==b) {
@@ -1001,6 +1109,7 @@ static void sys_timer_remove(struct blocker *b) {
 			if (bp==tout->tq_out_last) {
 				tout->tq_out_last=bprev;
 			}
+			TRACE_EXIT(SYS_TIMER_REMOVE,1);
 			return;
 		}
 		bprev=bp;
@@ -1008,32 +1117,51 @@ static void sys_timer_remove(struct blocker *b) {
 		bp=bp->next;
 	}
 	b->next=0;
+	TRACE_EXIT(SYS_TIMER_REMOVE,2);
 }
 
 int device_ready(struct blocker *b) {
-	if (b->ev&0x80) return 0;  // blocking from a list
+	TRACE_ENTER(DEVICE_READY);
+	if (b->ev&0x80) {
+		TRACE_EXIT(DEVICE_READY,1);
+		return 0;  // blocking from a list
+	}
+
+	TRACE_EXIT(DEVICE_READY,2);
 	return b->driver->ops->control(b->dh, IO_POLL, (void *)b->ev, 0);
 }
 
 /* not to be called from irq, cant sleep */
 void *sys_sleepon(struct blocker *so, unsigned int *tout) {
 	unsigned long int cpu_flags;
-	if (!task_sleepable()) return 0;
+	TRACE_ENTER(SYS_SLEEPON);
+	if (!task_sleepable()) {
+		TRACE_EXIT(SYS_SLEEPON,1);
+		return 0;
+	}
 
 	cpu_flags=disable_interrupts();
 
 	if (so->wake) {
 		so->wake=0;
 		restore_cpu_flags(cpu_flags);
+		TRACE_EXIT(SYS_SLEEPON,2);
 		return 0;
 	}
 	if (so->driver && (device_ready(so)>0)) {
 		restore_cpu_flags(cpu_flags);
+		TRACE_EXIT(SYS_SLEEPON,3);
 		return 0;
 	}
 	if (current->state!=TASK_STATE_RUNNING) {
 		restore_cpu_flags(cpu_flags);
 		sys_printf("wanted to sleep, non running task\n");
+		TRACE_EXIT(SYS_SLEEPON,4);
+		return 0;
+	}
+
+	if (tout&&((*tout)==0)) {
+		TRACE_EXIT(SYS_SLEEPON,5);
 		return 0;
 	}
 
@@ -1043,6 +1171,11 @@ void *sys_sleepon(struct blocker *so, unsigned int *tout) {
 	CLR_TMARK(current);
 
 	if (tout&&*tout) {
+		if (*tout<20) { // 10 ms granularity, but clamping to 20mS would mean 10-20, 0-10 is bad
+//			sys_printf("timeout was tight %d, adjusted\n",
+//					*tout);
+			*tout=20;
+		}
 		current->state=TASK_STATE_TIMER;
 		sys_timer(so,*tout);
 	} else {
@@ -1059,10 +1192,15 @@ void *sys_sleepon(struct blocker *so, unsigned int *tout) {
 	if (tout&&*tout) {
 		if (so->wakeup_tic!=tq_tic) {
 			*tout=(so->wakeup_tic-tq_tic)*10;
+			if ((*tout)<0) {
+				sys_printf("rest time got negative=%d\n", *tout);
+				*tout=0;
+			}
 		}
 		so->wakeup_tic=0;
 	}
 	DEBUGP(DLEV_SCHED,"sys sleepon woke up %x task: %s\n", so, current->name);
+	TRACE_EXIT(SYS_SLEEPON,6);
 	return so;
 }
 
@@ -1071,7 +1209,9 @@ void *sys_sleepon_update_list(struct blocker *b, struct blocker_list *bl_ptr) {
 	struct blocker **pprev;
 	struct blocker *tmp;
 	unsigned long int cpu_flags;
+	TRACE_ENTER(SYS_SLEEPON_UPDATE_LIST);
 	if (current->state!=TASK_STATE_RUNNING) {
+		TRACE_EXIT(SYS_SLEEPON_UPDATE_LIST,1);
 		return 0;
 	}
 	cpu_flags=disable_interrupts();
@@ -1111,9 +1251,11 @@ void *sys_sleepon_update_list(struct blocker *b, struct blocker_list *bl_ptr) {
 			sys_printf("sleep_list: failed, blocker not found\n");
 		}
 	}
+	TRACE_EXIT(SYS_SLEEPON_UPDATE_LIST,2);
 	return rc;
 out:
 	restore_cpu_flags(cpu_flags);
+	TRACE_EXIT(SYS_SLEEPON_UPDATE_LIST,3);
 	return rc;
 }
 
@@ -1121,8 +1263,10 @@ void *sys_wakeup(struct blocker *so) {
 	struct task *n = container_of(so,struct task, blocker);
 	int prio;
 	unsigned long int cpu_flags;
+	TRACE_ENTER(SYS_WAKEUP);
 
 	if (!n) {
+		TRACE_EXIT(SYS_WAKEUP,1);
 		return 0;
 	}
 	if (n==current) {
@@ -1130,6 +1274,7 @@ void *sys_wakeup(struct blocker *so) {
 		if (so->wakeup_tic) {
 			sys_timer_remove(so);
 		}
+		TRACE_EXIT(SYS_WAKEUP,2);
 		return 0;
 	}
 
@@ -1140,12 +1285,14 @@ void *sys_wakeup(struct blocker *so) {
 		}
 		sys_printf("waking up running not current process\n");
 		ASSERT(0);
+		TRACE_EXIT(SYS_WAKEUP,3);
 		return 0;
 	}
 
 	if (n->state==TASK_STATE_READY) {
 //		sys_printf("waking up ready process\n");
 //		ASSERT(0);
+		TRACE_EXIT(SYS_WAKEUP,4);
 		return 0;
 	}
 
@@ -1179,9 +1326,11 @@ void *sys_wakeup(struct blocker *so) {
 	if (prio<GET_PRIO(current)) {
 		DEBUGP(DLEV_SCHED,"wakeup(immed readying) %x current task: %s, readying %s\n",so,current->name,n->name);
 		switch_on_return();
+		TRACE_EXIT(SYS_WAKEUP,5);
 		return n;
 	}
 	DEBUGP(DLEV_SCHED,"wakeup(readying) %x current task: %s, readying %s\n",so,current->name,n->name);
+	TRACE_EXIT(SYS_WAKEUP,6);
  	return n;
 }
 
@@ -1189,6 +1338,7 @@ void *sys_wakeup_from_list(struct blocker_list *bl) {
 	struct blocker *tmp;
 	void *rc=0;
 	unsigned long int cpu_flags=disable_interrupts();
+	TRACE_ENTER(SYS_WAKEUP_FROM_LIST);
 	tmp=bl->first;
 	while (bl->first) {
 		tmp=bl->first;
@@ -1200,12 +1350,14 @@ void *sys_wakeup_from_list(struct blocker_list *bl) {
 //		ASSERT(rc);
 	}
 	restore_cpu_flags(cpu_flags);
+	TRACE_EXIT(SYS_WAKEUP_FROM_LIST,1);
 	return rc;
 }
 
 static int destroy_thread(struct task *t) {
 	int rc;
 	unsigned long int cpu_flags=disable_interrupts();
+	TRACE_ENTER(DESTROY_THREAD);
 	if (t->blocker.wakeup_tic) {
 		sys_timer_remove(&t->blocker);
 	}
@@ -1224,6 +1376,7 @@ static int destroy_thread(struct task *t) {
 	t->next=task_cemetery;
 	task_cemetery=t;
 	restore_cpu_flags(cpu_flags);
+	TRACE_EXIT(DESTROY_THREAD,1);
 	return 0;
 }
 
@@ -1303,6 +1456,31 @@ int driver_start() {
 	drv_sys_stat|=DRV_SYS_STAT_STARTED;
 	return 0;
 }
+
+int driver_prep_clk_update(int hz) {
+	struct driver *d=drv_root;
+
+	while(d) {
+		if (d->ops->clk_update) {
+			d->ops->clk_update(d->instance,0);
+		}
+		d=d->next;
+	}
+	return 0;
+}
+
+int driver_do_clk_update(int hz) {
+	struct driver *d=drv_root;
+
+	while(d) {
+		if (d->ops->clk_update) {
+			d->ops->clk_update(d->instance,hz);
+		}
+		d=d->next;
+	}
+	return 0;
+}
+
 
 int driver_unpublish(struct driver *drv) {
 	struct driver *tmp=drv_root;
@@ -1387,11 +1565,12 @@ static int console_init(void *instance) {
 }
 
 static int console_start(void *instance) {
-#ifdef SYS_CONSOLE_DEV
-	my_usart=driver_lookup(SYS_CONSOLE_DEV);
-#else
-	my_usart=driver_lookup("usart0");
-#endif
+	if (system_params.sys_console_dev) {
+		my_usart=driver_lookup(system_params.sys_console_dev);
+	} else {
+		my_usart=0;
+	}
+
 	if (!my_usart) {
 		sys_printf("dont have usart\n");
 		return 0;
@@ -1454,6 +1633,8 @@ extern int switch_flag;
 //extern int __usr_main(int argc, char **argv);
 extern void *usr_init;
 
+volatile unsigned int power_mode;
+
 void start_sys(void) {
 
 	unsigned long int stackp;
@@ -1471,11 +1652,11 @@ void start_sys(void) {
 	stackp=((unsigned long int)t)+4096;
 	t->estack=((unsigned long int)t)+2048;
 	stackp=stackp-8;
-#ifdef USER_CONSOLE_DEV
-	strcpy((void *)stackp,USER_CONSOLE_DEV);
-#else
-	strcpy((void *)stackp,"usart0");
-#endif
+	if (system_params.user_console_dev) {
+		strcpy((void *)stackp,system_params.user_console_dev);
+	} else {
+		strcpy((void *)stackp,"dumdum");
+	}
 	setup_return_stack(t,(void *)stackp,(unsigned long int)usr_init,0, (void *)stackp, (void *)8);
 
 	t->next2=troot;
@@ -1490,7 +1671,11 @@ void start_sys(void) {
 	sys_printf("leaving start_sys: got task ptr %x\n", t);
 	clear_all_interrupts();
 	switch_on_return();  /* will switch in the task on return from next irq */
-	while(1);
+	while(1) {
+		if ((power_mode&0x6)!=POWER_MODE_NO_WAIT) {
+			halt();
+		}
+	}
 
 //	thread_create(sys_mon,"usart0",0,3,"sys_mon");
 ////	thread_create(sys_mon,"stterm0",3,"sys_mon");

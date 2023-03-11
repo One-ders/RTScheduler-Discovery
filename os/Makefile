@@ -6,7 +6,7 @@
 #LDFLAGS=-g -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fno-builtin
 
 
-all: $(TOP)/incl $(TOP)/incl/sys.h $(TOP)/incl/io.h $(OBJ)/lib $(OBJ)/lib/os.o $(OBJ)/lib/init_sect.o $(OBJ)/lib/end_sect.o
+all: $(TOP)/incl $(TOP)/incl/sys.h $(TOP)/incl/io.h $(TOP)/incl/system_params.h $(OBJ)/lib $(OBJ)/lib/os.o $(OBJ)/lib/init_sect.o $(OBJ)/lib/end_sect.o
 
 #../lib/syslib.a: os.o init_sect.o end_sect.o
 #	ar -cr $@ $^
@@ -20,6 +20,8 @@ $(TOP)/incl/sys.h: sys.h
 
 $(TOP)/incl/io.h: io.h
 	cp $^ $@
+
+$(TOP)/incl/system_params.h: system_params.h
 
 $(OBJ)/lib:
 	mkdir $(OBJ)/lib

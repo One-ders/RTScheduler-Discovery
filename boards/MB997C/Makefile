@@ -3,9 +3,9 @@ DRIVERS+=stddrv.o
 DRIVERS+=led_drv.o
 DRIVERS+=gpio_drv.o
 DRIVERS+=usart_drv.o
-DRIVERS+=usb_core_drv.o
-DRIVERS+=usb_serial_drv.o
-DRIVERS+=hr_timer.o
+#DRIVERS+=usb_core_drv.o
+#DRIVERS+=usb_serial_drv.o
+#DRIVERS+=hr_timer.o
 
 DTARGETS=$(DRIVERS:.o=)
 DOBJS=$(patsubst %, $(OBJ)/drv_obj/%, $(DRIVERS))

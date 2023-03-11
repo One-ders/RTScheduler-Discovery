@@ -1,6 +1,7 @@
 
 #include <sys.h>
 #include <frame.h>
+#include <system_params.h>
 
 unsigned int get_svc_number(void *sp) {
 	return (((char *)((unsigned long int *)sp)[6])[-2]);
@@ -98,3 +99,29 @@ int mapmem(struct task *t, unsigned long int vaddr, unsigned long int paddr, uns
 unsigned long int get_mmap_vaddr(struct task *current, unsigned int size) {
 	return 0;
 }
+
+static void __WFE(void) {
+  asm("wfe");
+}
+
+static void __WFI(void) {
+  asm("wfi");
+}
+
+
+int halt() {
+	unsigned int *SCR=(unsigned int *)0xe000ed10;
+	if (power_mode&POWER_MODE_DEEP_SLEEP) {
+		*SCR|=0x4;
+	} else {
+		*SCR&=~0x4;
+	}
+
+	if (power_mode&POWER_MODE_WAIT_WFI) {
+		__WFI();
+	} else if (power_mode&POWER_MODE_WAIT_WFE) {
+		__WFE();
+	}
+	return 0;
+}
+

@@ -355,6 +355,28 @@ static int usart_control(struct device_handle *dh,
 	return 0;
 }
 
+static int usart_clk_update(void *instance, int hz) {
+	unsigned int brr;
+//	struct usart_data *ud=(struct usart_data *)instance;
+
+	switch(hz) {
+		case 16000000:
+			brr=0x8D;		// 115200 at PCKL=16Mhz over8=0
+			break;
+		case 84000000:
+			brr=0x16D;          // 115200 at PCKL1=42Mhz over8=0
+			break;
+		case 96000000:
+			brr=0x1A1;          // 115200 at PCKL1=48Mhz over8=0
+			break;
+		default:
+			return 0;
+	}
+
+	usart->BRR=brr;
+	return 0;
+}
+
 static int usart_init(void *instance) {
 	unsigned int brr;
 	struct usart_data *ud=(struct usart_data *)instance;
@@ -370,6 +392,7 @@ static int usart_init(void *instance) {
 #else
 	brr=0x2d9;	// 115200 at PCKL2=84Mhz over8=0
 #endif
+	usart->BRR=brr;
 #elif   USE_USART==2
 	usart=USART2;
 	RCC->APB1ENR|=RCC_APB1ENR_USART2EN;
@@ -377,8 +400,9 @@ static int usart_init(void *instance) {
 #ifdef MB1075B
 //	brr=0x187;          // 115200 at PCKL2=45Mhz over8=0
 	brr=0x16D;          // 115200 at PCKL1=42Mhz over8=0
+	usart->BRR=brr;
 #else
-	brr=0x16D;          // 115200 at PCKL1=42Mhz over8=0
+	usart_clk_update(instance,SystemCoreClock);
 #endif
 #elif   USE_USART==3
 	usart=USART3;
@@ -390,9 +414,9 @@ static int usart_init(void *instance) {
 #else
 	brr=0x16D;          // 115200 at PCKL1=42Mhz over8=0
 #endif
+	usart->BRR=brr;
 #endif
 
-	usart->BRR=brr;
 	ud->wblocker_list.is_ready=tx_buf_empty;
 	ud->rblocker_list.is_ready=rx_data_avail;
 	return 0;
@@ -462,7 +486,8 @@ static struct driver_ops usart_ops = {
 	usart_close,
 	usart_control,
 	usart_init,
-	usart_start
+	usart_start,
+	usart_clk_update
 };
 
 static struct driver usart0 = {

@@ -1,6 +1,7 @@
 #include "stm32f407.h"
 #include "io.h"
 #include "sys.h"
+#include "trace.h"
 
 #define TASK_XPSR(a)    ((unsigned int *)a)[15]
 
@@ -82,6 +83,7 @@ void *PendSV_Handler_c(unsigned long int *save_sp) {
 	/* clr pendsv trap  cpu bug????*/
 //	 *((unsigned int volatile *)0xE000ED04) = 0x08000000;
 	cpu_flags=disable_interrupts();
+	TRACE_ENTER(PENDSV_HANDLER_C);
 	while(i<MAX_PRIO) {
 		t=ready[i];
 		if (t) {
@@ -118,13 +120,14 @@ void *PendSV_Handler_c(unsigned long int *save_sp) {
 			CLR_TMARK(current);
 			t->next=ready[t->prio_flags&3];
 			ready[t->prio_flags&3]=t;
+			TRACE_EXIT(PENDSV_HANDLER_C,1);
 			restore_cpu_flags(cpu_flags);
 			return 0;
 		}
 	}
 
 //	restore_cpu_flags(cpu_flags);
-	/* Have next, move away current if still here, 
+	/* Have next, move away current if still here,
 	   timer and blocker move themselves */
 	if (current->state==TASK_STATE_RUNNING) {
 		int prio=current->prio_flags&0xf;
@@ -153,12 +156,15 @@ void *PendSV_Handler_c(unsigned long int *save_sp) {
 		*(save_sp-2)=0xfffffff9;
 	}
 	t->blocker.ev&=~0x80; // Clear list sleep
+	TRACE_EXIT(PENDSV_HANDLER_C,2);
 	return t;
 }
 
 void switch_on_return(void) {
+	TRACE_ENTER(SWITCH_ON_RETURN);
 	/* Trigger a pendsv trap */
 	 *((unsigned int volatile *)0xE000ED04) = 0x10000000;
+	TRACE_EXIT(SWITCH_ON_RETURN,1);
 }
 
 __attribute__ ((naked)) int fake_pendSV(void) {
@@ -190,12 +196,14 @@ void switch_now(void) {
 //	if (!(ready[0]||ready[1]||ready[2]||ready[3])) {
 //		ASSERT(0);
 //	}
+	TRACE_ENTER(SWITCH_NOW);
 	fake_pendSV();
 	if ((xpsr()&0x1ff)!=0x0b) {
 		ASSERT(0);
 	}
         *((volatile unsigned int *)0xe000ed24)|=0x80; /* set cpu state to
                                                         SVC call active */
+	TRACE_EXIT(SWITCH_NOW,1);
 }
 
 void init_switcher(void) {
