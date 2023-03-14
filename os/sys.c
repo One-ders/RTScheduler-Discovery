@@ -456,14 +456,12 @@ done:
 			drv=driver_lookup(drvname);
 			if (!drv) {
 				set_svc_ret(svc_sp,-1);
-				sys_printf("SVC_IO_OPEN: return -1 no drv:\n");
 				TRACE_EXIT(HANDLE_SYSCALL,9);
 				return 0;
 			}
 			ufd=get_user_fd(((struct driver *)0xffffffff),0);
 			if (ufd<0) {
 				set_svc_ret(svc_sp,-1);
-//				sys_printf("SVC_IO_OPEN: return -1 get user\n");
 				TRACE_EXIT(HANDLE_SYSCALL,10);
 				return 0;
 			}
@@ -471,7 +469,6 @@ done:
 			if (!dh) {
 				detach_driver_fd(&fd_tab[ufd]);
 				set_svc_ret(svc_sp,-1);
-				sys_printf("SVC_IO_OPEN: return -1 drv open\n");
 				TRACE_EXIT(HANDLE_SYSCALL,11);
 				return 0;
 			}
@@ -720,7 +717,6 @@ poll_again:
 			}
 
 			detach_driver_fd(&fd_tab[fd]);
-
 			rc=driver->ops->close(dh);
 			set_svc_ret(svc_sp,rc);
 			TRACE_EXIT(HANDLE_SYSCALL,37);

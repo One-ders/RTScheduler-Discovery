@@ -358,6 +358,9 @@ static int hr_timer_control(struct device_handle *dh, int cmd, void *arg, int le
 
 static int setup_timer(unsigned int hz) {
 
+/* Blackpill configured to 84Mhz, prescaler count of 84 give 1uS timer tics */
+//	TIM10->PSC=83;
+
 	if (!hz) return 0;
 	if (hz && (hz<84000000)) {
 		// stop clock to tim10, slow cpu cant drive hr_timer
@@ -396,8 +399,6 @@ static int setup_timer(unsigned int hz) {
 
 static int hr_timer_init(void *inst) {
 
-/////	/* Blackpill configured to 84Mhz, prescaler count of 84 give 1uS timer tics */
-/////	TIM10->PSC=83;   /* */
 	setup_timer(SystemCoreClock);
 	return 0;
 }

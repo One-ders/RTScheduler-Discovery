@@ -35,6 +35,7 @@
 #include "sys.h"
 #include "io.h"
 #include "string.h"
+#include "system_params.h"
 
 static struct driver *io_drv;
 static struct device_handle *io_dh=0;
@@ -515,11 +516,12 @@ int sys_log(const char *fmt, ...) {
 
 void init_io(void) {
 	if (io_drv) goto io_done;
-#ifdef SYS_CONSOLE_DEV
-	io_drv=driver_lookup(SYS_CONSOLE_DEV);
-#else
-	io_drv=driver_lookup("usart0");
-#endif
+	if (system_params.sys_console_dev) {
+		io_drv=driver_lookup(system_params.sys_console_dev);
+	} else {
+		io_drv=0;
+	}
+
 	if (!io_drv) {
 		goto io_done;
 	}
