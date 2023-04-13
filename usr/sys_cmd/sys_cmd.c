@@ -568,7 +568,7 @@ static int pwr_mgr_test(int argc, char **argv, struct Env *env) {
 
 	pm_fd=io_open("pwr_mgr");
 	if (pm_fd<0) {
-		fprintf(fd, "failed to open pwr_mgr driver\n");
+		fprintf(fd, "failed to open pwr_mgr driver, f.ex. get or set\n");
 		rc=-1;
 		goto out1;
 	}

@@ -124,7 +124,6 @@ static void wakeup_users(unsigned int ev) {
         }
 }
 
-
 #if USE_USART==1
 void USART1_IRQHandler(void) {
 #elif USE_USART==2
@@ -356,7 +355,9 @@ static int usart_control(struct device_handle *dh,
 }
 
 static int usart_clk_update(void *instance, int hz) {
+	struct usart_data *ud=&usart_data0;
 	unsigned int brr;
+	unsigned long int cpu_flags;
 //	struct usart_data *ud=(struct usart_data *)instance;
 
 	switch(hz) {
@@ -370,10 +371,17 @@ static int usart_clk_update(void *instance, int hz) {
 			brr=0x1A1;          // 115200 at PCKL1=48Mhz over8=0
 			break;
 		default:
+
+			cpu_flags=disable_interrupts();
+			while((!ud->chip_dead)&&!(((volatile short int)usart->SR)&USART_SR_TC));
+			usart->CR1&=~(USART_CR1_TE|USART_CR1_RE);
+			restore_cpu_flags(cpu_flags);
+
 			return 0;
 	}
 
 	usart->BRR=brr;
+	usart->CR1|=(USART_CR1_TXEIE|USART_CR1_TCIE|USART_CR1_TE|USART_CR1_RE|USART_CR1_RXNEIE);
 	return 0;
 }
 

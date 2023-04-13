@@ -374,30 +374,6 @@ static int set_flags(struct pin_data *pdp, unsigned int flags, unsigned int bpin
 			GPIO[bus]->otyper|=(1<<pin);
 		}
 
-#if 0
-		switch(drive) {
-			case GPIO_FLOAT: {
-				sys_printf("gpio float\n");
-				GPIO[bus]->pupdr&=~(3<<(pin<<1));
-				break;
-			}
-			case GPIO_PULLUP: {
-				sys_printf("gpio pullup\n");
-				GPIO[bus]->pupdr&=~(3<<(pin<<1));
-				GPIO[bus]->pupdr|=(1<<(pin<<1));
-				break;
-			}
-			case GPIO_PULLDOWN: {
-				sys_printf("gpio_pulldown\n");
-				GPIO[bus]->pupdr&=~(3<<(pin<<1));
-				GPIO[bus]->pupdr|=(2<<(pin<<1));
-				break;
-			}
-			default: {
-				sys_printf(" gpio drive mode %d\n",drive);
-			}
-		}
-#endif
 	}
 
 	if (altfn) {
@@ -440,6 +416,38 @@ static int set_flags(struct pin_data *pdp, unsigned int flags, unsigned int bpin
 		exti_regs->rtsr|=(1<<pin);
 		exti_regs->ftsr|=(1<<pin);
 		exti_regs->imr|=(1<<pin);
+	} else {
+		int exticr=pin>>2;
+		int exticrshift=(pin&0x3)<<2;
+
+		if ((exti2pd[pin]) && (exti2pd[pin]!=pdp)) {
+//			sys_printf("not mine\n");
+			return 0;
+		}
+
+		exti2pd[pin]=0;
+
+#if 0
+		if ((pin>=0)&&(pin<5)) {
+//			NVIC_SetPriority(pin+6,0x1);
+			NVIC_DisableIRQ(pin+6);
+		} else if ((pin>=5)&&(pin<10)) {
+//			NVIC_SetPriority(23,0x1);
+			NVIC_DisableIRQ(23);
+		} else if ((pin>=10)&&(pin<16)) {
+//			NVIC_SetPriority(40,0x1);
+			NVIC_DisableIRQ(40);
+		}
+#endif
+
+
+		/* Syscfg exticr */
+		exti_cr[exticr]&=~(0xf<<exticrshift);
+//		exti_cr[exticr]|=(bus<<exticrshift);
+
+//		exti_regs->rtsr|=(1<<pin);
+//		exti_regs->ftsr|=(1<<pin);
+		exti_regs->imr&=~(1<<pin);
 	}
 	return 0;
 }

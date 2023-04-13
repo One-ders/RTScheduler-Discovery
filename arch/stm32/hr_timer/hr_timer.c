@@ -264,7 +264,7 @@ static int hr_timer_set(struct timer_user *u, int val) {
 		return -1;
 	}
 	if (u->out_tic) {
-		sys_printf("setting active timer\n");
+		sys_printf("hr_timer:setting active timer\n");
 		return -1;
 	}
 
@@ -323,6 +323,7 @@ static struct device_handle *hr_timer_open(void *inst, DRV_CBH callback, void *u
 
 static int hr_timer_close(struct device_handle *dh) {
 	struct timer_user *tu=(struct timer_user *)dh;
+	hr_timer_clr(tu);
 	tu->inuse=0;
 	return 0;
 }
@@ -365,7 +366,7 @@ static int setup_timer(unsigned int hz) {
 	if (hz && (hz<84000000)) {
 		// stop clock to tim10, slow cpu cant drive hr_timer
 		RCC->APB2ENR &= ~RCC_APB2ENR_TIM10EN;
-		sys_printf("hr_timer: disable for low clock speed\n");
+//		sys_printf("hr_timer: disable for low clock speed\n");
 		return 0;
 	}
 
