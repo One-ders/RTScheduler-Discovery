@@ -22,7 +22,7 @@ extern int __usr_main(int argc, char **argv);
 void *usr_init=__usr_main;
 
 void build_free_page_list(void);
-static unsigned long free_page_map[SDRAM_SIZE/(PAGE_SIZE*sizeof(unsigned long))];
+static unsigned long free_page_map[SDRAM_SIZE/(PAGE_SIZE*8*sizeof(unsigned long))];
 
 extern unsigned long __bss_start__;
 extern unsigned long __bss_end__;

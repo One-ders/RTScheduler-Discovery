@@ -4,7 +4,7 @@ See. https://stm32-base.org/boards/STM32F411CEU6-WeAct-Black-Pill-V2.0.html
 
 I used dfu-util to flash it, f.ex.
 
-dfu-util -a0 -s0x8000000:leave -DmyCore.bin
+dfu-util -S"368F36473032" -a0 -s0x8000000:leave -DmyCore.bin
 
 
 Else use st-link with the elf file myCore. But I could not get st-link

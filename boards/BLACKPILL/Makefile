@@ -54,6 +54,8 @@ endif
 
 LDFLAGS_USR=-g -r $(OBJ)/usr/lib/usrlib.o
 
+#GCC_LIB= -L$(GCC_BASE)/lib/gcc/arm-none-eabi/4.8.3 -lgcc # for 64 bits operations, dont work
+
 RELFILES=obj/arch/stm32/stm32.o obj/arch/stm32/stm32f411/stm32f411.o \
 	obj/drv_obj/*.o obj/os/end_sect.o obj/os/init_sect.o obj/os/os.o \
 	obj/usr/lib/usrlib.o obj/usr/sys_cmd/sys_cmd.o Makefile \

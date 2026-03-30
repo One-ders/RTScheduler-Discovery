@@ -1,6 +1,7 @@
 
 /* Binary composition and layout of sections  */
 
+
 MEMORY {
 	FLASH (rx)	: ORIGIN = 0x08000000, LENGTH = 0x100000 /* 1 Meg */
 	RAM (rwx)	: ORIGIN = 0x20000000, LENGTH = 0x020000 /* 128 K */

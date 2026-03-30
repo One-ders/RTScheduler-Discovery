@@ -325,6 +325,675 @@ out:
 
 static int destroy_thread(struct task *t);
 
+static int create_task(unsigned long int *svc_sp) {
+	struct task_create_args *tca=
+		(struct task_create_args *)get_svc_arg(svc_sp,0);
+	struct task *t=(struct task *)get_page();
+	unsigned char *estack=((unsigned char *)t)+2048;
+	unsigned long int *stackp=(unsigned long int *)(estack+2048);
+	unsigned char *uval=tca->val;
+
+	if (!t) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,1);
+		return 0;
+	}
+
+	memset(t,0,sizeof(struct task));
+	if (allocate_task_id(t)<0) {
+		sys_printf("proc table full\n");
+		put_page(t);
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,2);
+		return 0;
+	}
+
+	map_tmp_stack_page((unsigned long int)estack,10);
+
+	if (tca->prio>MAX_PRIO) {
+		unmap_tmp_stack_page();
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,3);
+		return 0;
+	}
+	__builtin_memset(estack,0,2048);
+	t->estack=estack;
+	if (tca->val_size) {
+		int aval_size=(tca->val_size+7)&~0x7;
+		uval=((unsigned char *)stackp)-aval_size;
+		memcpy(uval,tca->val,tca->val_size);
+		stackp=(unsigned long int *)uval;
+	}
+	t->asp=current->asp;
+	t->asp->ref++;
+	setup_return_stack(t,(void *)stackp,(unsigned long int)tca->fnc,(unsigned long int)__usr_svc_destroy_self,(void *)uval,8);
+
+	t->state=TASK_STATE_READY;
+	t->name=tca->name;
+	SET_PRIO(t,tca->prio);
+	t->next2=troot;
+	troot=t;
+
+	if(!ready[tca->prio]) {
+		ready[tca->prio]=t;
+	} else {
+		ready_last[tca->prio]->next=t;
+	}
+	ready_last[tca->prio]=t;
+	unmap_tmp_stack_page();
+
+	if (tca->prio<GET_PRIO(current)) {
+		DEBUGP(DLEV_SCHED,"Create task: %s, switch out %s\n", t->name, current->name);
+		switch_on_return();
+	} else {
+		DEBUGP(DLEV_SCHED,"Create task: %s\n", t->name);
+	}
+
+	set_svc_ret(svc_sp,0);
+	TRACE_EXIT(HANDLE_SYSCALL,4);
+	return 0;
+}
+
+/*
+ * io routines
+ */
+
+static int io_open(unsigned long int *svc_sp) {
+	struct driver *drv;
+	struct device_handle *dh;
+	char *drvname=(char *)get_svc_arg(svc_sp,0);
+	int  ufd;
+	drv=driver_lookup(drvname);
+	if (!drv) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,9);
+		return 0;
+	}
+	ufd=get_user_fd(((struct driver *)0xffffffff),0);
+	if (ufd<0) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,10);
+		return 0;
+	}
+	dh=drv->ops->open(drv->instance,sys_drv_wakeup,current);
+	if (!dh) {
+		detach_driver_fd(&fd_tab[ufd]);
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,11);
+		return 0;
+	}
+	dh->user_data1=ufd;
+	fd_tab[ufd].driver=drv;
+	fd_tab[ufd].dev_handle=dh;
+	fd_tab[ufd].flags=0;
+	set_svc_ret(svc_sp,ufd);
+	TRACE_EXIT(HANDLE_SYSCALL,12);
+	return 0;
+}
+
+static int io_read(unsigned long int *svc_sp) {
+	int rc;
+	struct user_fd *fdd;
+	struct driver *driver;
+	struct device_handle *dh;
+	int fd=(int)get_svc_arg(svc_sp,0);
+	if (fd<0) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,13);
+		return 0;
+	}
+	fdd=&fd_tab[fd];
+	driver=fdd->driver;
+	dh=fdd->dev_handle;
+	if (!driver) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,14);
+		return 0;
+	}
+
+	current->blocker.dh=dh;
+	current->blocker.ev=EV_READ;
+
+	while(1) {
+		rc=driver->ops->control(dh,RD_CHAR,(void *)get_svc_arg(svc_sp,1),get_svc_arg(svc_sp,2));
+		if (rc==-DRV_AGAIN&&(!fdd->flags&O_NONBLOCK)) {
+			current->blocker.driver=driver;
+			sys_sleepon(&current->blocker,0);
+		} else {
+			break;
+		}
+	}
+	current->blocker.ev=0;
+	set_svc_ret(svc_sp,rc);
+	TRACE_EXIT(HANDLE_SYSCALL,15);
+	return 0;
+}
+
+static int io_write(unsigned long int *svc_sp) {
+	int rc=0;
+	int done=0;
+	struct user_fd *fdd;
+	struct driver *driver;
+	struct device_handle *dh;
+	int fd=(int)get_svc_arg(svc_sp,0);
+	if (fd<0) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,16);
+		return 0;
+	}
+	fdd=&fd_tab[fd];
+	driver=fdd->driver;
+	dh=fdd->dev_handle;
+	if (!driver) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,17);
+		return 0;
+	}
+
+	current->blocker.dh=dh;
+	current->blocker.ev=EV_WRITE;
+
+again:
+	rc=driver->ops->control(dh,WR_CHAR,(void *)get_svc_arg(svc_sp,1)+done,get_svc_arg(svc_sp,2)-done);
+
+	if (rc==-DRV_AGAIN&&(!(fdd->flags&O_NONBLOCK))) {
+		current->blocker.driver=driver;
+		sys_sleepon(&current->blocker,0);
+		TRACE_EXIT(HANDLE_SYSCALL,18);
+		goto again;
+	}
+
+	if (rc==-DRV_INPROGRESS&&(!(fdd->flags&O_NONBLOCK))) {
+		int result;
+		current->blocker.driver=driver;
+		sys_sleepon(&current->blocker,0);
+		rc=driver->ops->control(dh,WR_GET_RESULT,&result,sizeof(result));
+		current->blocker.ev=0;
+		if (current->blocker.wake) {
+			current->blocker.wake=0;
+			sys_printf("clearing old wake\n");
+		}
+		if (rc<0) {
+			set_svc_ret(svc_sp,rc);
+		} else {
+			set_svc_ret(svc_sp,result);
+		}
+		TRACE_EXIT(HANDLE_SYSCALL,19);
+		return 0;
+	}
+	if (rc>=0) {
+		done+=rc;
+		if ((done!=get_svc_arg(svc_sp,2))&&(!(fdd->flags&O_NONBLOCK))) {
+			goto again;
+		}
+	} else {
+		current->blocker.ev=0;
+		if (current->blocker.wake) {
+			current->blocker.wake=0;
+			sys_printf("clearing old wake\n");
+		}
+		set_svc_ret(svc_sp,rc);
+		TRACE_EXIT(HANDLE_SYSCALL,20);
+		return 0;
+	}
+
+	current->blocker.ev=0;
+	if (current->blocker.wake) {
+		current->blocker.wake=0;
+		sys_printf("clearing old wake\n");
+	}
+	set_svc_ret(svc_sp,done);
+	TRACE_EXIT(HANDLE_SYSCALL,21);
+	return 0;
+}
+
+static int io_control(unsigned long int *svc_sp) {
+	int	ufd;
+	int	rc;
+	struct	user_fd		*fdd;
+	struct	driver		*driver;
+	struct	device_handle	*dh;
+	int	fd	=(int)get_svc_arg(svc_sp,0);
+	if (fd<0) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,22);
+		return 0;
+	}
+	fdd=&fd_tab[fd];
+	driver=fdd->driver;
+	dh=fdd->dev_handle;
+
+	if (!driver) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,23);
+		return 0;
+	}
+
+	if (get_svc_arg(svc_sp,1)==DYNOPEN) {
+		struct dyn_open_args doargs;
+
+		doargs.name=(char *)get_svc_arg(svc_sp,2);
+		ufd=get_user_fd(((struct driver *)0xffffffff),0);
+		if (ufd<0) {
+			set_svc_ret(svc_sp,-1);
+			TRACE_EXIT(HANDLE_SYSCALL,24);
+			return 0;
+		}
+
+		rc=driver->ops->control(dh,DYNOPEN,(void *)&doargs,get_svc_arg(svc_sp,3));
+		if (rc<0) {
+			detach_driver_fd(&fd_tab[ufd]);
+			set_svc_ret(svc_sp,-1);
+			TRACE_EXIT(HANDLE_SYSCALL,25);
+			return 0;
+		}
+		doargs.dh->user_data1=ufd;
+		fd_tab[ufd].driver=driver;
+		fd_tab[ufd].dev_handle=doargs.dh;
+		fd_tab[ufd].flags=0;
+		set_svc_ret(svc_sp,ufd);
+		TRACE_EXIT(HANDLE_SYSCALL,26);
+		return 0;
+	}
+
+	if (get_svc_arg(svc_sp,1)==F_SETFL) {
+		fdd->flags=get_svc_arg(svc_sp,2);
+		TRACE_EXIT(HANDLE_SYSCALL,27);
+		return 0;
+	}
+	if (get_svc_arg(svc_sp,1)==F_GETFL) {
+		set_svc_ret(svc_sp,fdd->flags);
+		TRACE_EXIT(HANDLE_SYSCALL,28);
+		return 0;
+	}
+	if (get_svc_arg(svc_sp,1)==IO_POLL) {
+poll_again:
+		current->blocker.dh=dh;
+		current->blocker.ev=EV_STATE;
+		rc=driver->ops->control(dh,IO_POLL,(void *)get_svc_arg(svc_sp,2),get_svc_arg(svc_sp,3));
+
+		if (rc==-DRV_AGAIN&&(!(fdd->flags&O_NONBLOCK))) {
+			current->blocker.driver=driver;
+			sys_sleepon(&current->blocker,0);
+			goto poll_again;
+		}
+		current->blocker.ev=0;
+		set_svc_ret(svc_sp,rc);
+		TRACE_EXIT(HANDLE_SYSCALL,29);
+		return 0;
+	}
+	rc=driver->ops->control(dh,get_svc_arg(svc_sp,1),(void *)get_svc_arg(svc_sp,2),get_svc_arg(svc_sp,3));
+	current->blocker.ev=0;
+	set_svc_ret(svc_sp,rc);
+	TRACE_EXIT(HANDLE_SYSCALL,30);
+	return 0;
+}
+
+static int io_lseek(unsigned long int *svc_sp) {
+	int rc;
+	struct driver *driver;
+	struct device_handle *dh;
+	int fd=(int)get_svc_arg(svc_sp,0);
+	if (fd<0) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,31);
+		return 0;
+	}
+
+	driver=fd_tab[fd].driver;
+	dh=fd_tab[fd].dev_handle;
+	if (!driver) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,32);
+		return 0;
+	}
+	rc=driver->ops->control(dh,IO_LSEEK,(void *)get_svc_arg(svc_sp,1),get_svc_arg(svc_sp,2));
+	set_svc_ret(svc_sp,rc);
+	TRACE_EXIT(HANDLE_SYSCALL,33);
+	return 0;
+}
+
+static int io_close(unsigned long int *svc_sp) {
+	int rc;
+	struct driver *driver;
+	struct device_handle *dh;
+
+	int fd=(int)get_svc_arg(svc_sp,0);
+	if (fd<0) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,34);
+		return 0;
+	}
+	if (!fd) {
+		sys_printf("someone tried to close the console\n");
+		TRACE_EXIT(HANDLE_SYSCALL,35);
+		return 0;
+	}
+
+	driver=fd_tab[fd].driver;
+	dh=fd_tab[fd].dev_handle;
+	if (!driver) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,36);
+		return 0;
+	}
+
+	detach_driver_fd(&fd_tab[fd]);
+	rc=driver->ops->close(dh);
+	set_svc_ret(svc_sp,rc);
+	TRACE_EXIT(HANDLE_SYSCALL,37);
+	return 0;
+}
+
+static int io_select(unsigned long int *svc_sp) {
+	struct sel_args *sel_args=(struct sel_args *)get_svc_arg(svc_sp,0);
+	int nfds=sel_args->nfds;
+	unsigned int *tout=sel_args->tout;
+	int i;
+	unsigned long int cpu_flags;
+
+	fd_set rfds=*sel_args->rfds;
+	fd_set wfds=*sel_args->wfds;
+	fd_set stfds=*sel_args->stfds;
+
+	sel_args->nfds=0;
+	*sel_args->rfds=0;
+	*sel_args->wfds=0;
+	*sel_args->stfds=0;
+
+	current->sel_data.nfds=0;
+	current->sel_data.rfds=0;
+	current->sel_data.wfds=0;
+	current->sel_data.stfds=0;
+
+	current->sel_data_valid=1;
+	for(i=0;i<nfds;i++) {
+		if (wfds&(1<<i)) {
+			struct driver *driver=fd_tab[i].driver;
+			struct device_handle *dh=fd_tab[i].dev_handle;
+			if (driver) {
+				if (driver->ops->control(dh,IO_POLL,(void *)EV_WRITE,0)) {
+					*sel_args->wfds=(1<<i);
+					set_svc_ret(svc_sp,1);
+					TRACE_EXIT(HANDLE_SYSCALL,38);
+					return 0;
+				}
+			} else {
+				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,39);
+				return 0;
+			}
+		}
+	}
+
+	for(i=0;i<nfds;i++) {
+		if (rfds&(1<<i)) {
+			struct driver *driver=fd_tab[i].driver;
+			struct device_handle *dh=fd_tab[i].dev_handle;
+			if (driver) {
+				if (driver->ops->control(dh,IO_POLL,(void *)EV_READ,0)) {
+					*sel_args->rfds=(1<<i);
+					set_svc_ret(svc_sp,1);
+					TRACE_EXIT(HANDLE_SYSCALL,40);
+					return 0;
+				}
+			} else {
+				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,41);
+				return 0;
+			}
+		}
+	}
+
+	for(i=0;i<nfds;i++) {
+		if (stfds&(1<<i)) {
+			struct driver *driver=fd_tab[i].driver;
+			struct device_handle *dh=fd_tab[i].dev_handle;
+			if (driver) {
+				if (driver->ops->control(dh,IO_POLL,(void *)EV_STATE,0)) {
+					*sel_args->stfds=(1<<i);
+					set_svc_ret(svc_sp,1);
+					TRACE_EXIT(HANDLE_SYSCALL,42);
+					return 0;
+				}
+			} else {
+				set_svc_ret(svc_sp,-1);
+				TRACE_EXIT(HANDLE_SYSCALL,43);
+				return 0;
+			}
+		}
+	}
+
+	current->blocker.driver=0;
+	cpu_flags=disable_interrupts();
+	if (!current->sel_data.nfds) {
+		sys_sleepon(&current->blocker,tout);
+	}
+	current->sel_data_valid=0;
+	restore_cpu_flags(cpu_flags);
+
+	*sel_args->rfds=current->sel_data.rfds;
+	*sel_args->wfds=current->sel_data.wfds;
+	*sel_args->stfds=current->sel_data.stfds;
+	set_svc_ret(svc_sp,current->sel_data.nfds);
+	TRACE_EXIT(HANDLE_SYSCALL,44);
+	return 0;
+}
+
+static int io_mmap(unsigned long int *svc_sp) {
+	void *addr=(void *)get_svc_arg(svc_sp,0);
+	unsigned int len=(unsigned int)get_svc_arg(svc_sp,1);
+	int prot=(int)get_svc_arg(svc_sp,2);
+	int flags=(int)get_svc_arg(svc_sp,3);
+	long int offset=(long int)get_svc_arg(svc_sp,5);
+	unsigned long int paddr;
+	unsigned long int vaddr;
+	unsigned long int start_vaddr;
+	unsigned int npages;
+	int i;
+	int rc;
+	struct driver *driver;
+	struct device_handle *dh;
+	int fd=(int)get_svc_arg(svc_sp,4);
+	if (fd<0) {
+		set_svc_ret(svc_sp,-1);
+		return 0;
+	}
+	driver=fd_tab[fd].driver;
+	dh=fd_tab[fd].dev_handle;
+
+	sys_printf("IO_MMAP: addr=%x, len=%d, prot=%d, flags=%d, fd=%d, offset=%d\n",
+				addr,len,prot,flags,fd,offset);
+	if (!driver) {
+		set_svc_ret(svc_sp,0);
+		TRACE_EXIT(HANDLE_SYSCALL,45);
+		return 0;
+	}
+	npages=((len-1)/PAGE_SIZE)+1;
+	paddr=driver->ops->control(dh,IO_MMAP,(void *)offset,len);
+	vaddr=get_mmap_vaddr(current,len);
+
+	sys_printf("IO_MMAP: need %d pages, vaddr %x, paddr %x\n", npages, vaddr, paddr);
+			start_vaddr=vaddr;
+	for(i=0;i<npages;i++) {
+		rc=mapmem(current,vaddr,paddr, MAP_NO_CACHE | MAP_WRITE);
+		if (rc<0) {
+			set_svc_ret(svc_sp,0);
+			TRACE_EXIT(HANDLE_SYSCALL,46);
+			return 0;
+		}
+		vaddr+=PAGE_SIZE;
+		paddr+=PAGE_SIZE;
+	}
+	set_svc_ret(svc_sp,start_vaddr);
+	TRACE_EXIT(HANDLE_SYSCALL,47);
+	return 0;
+}
+
+static int block_task(unsigned long int *svc_sp) {
+	char *name=(char *)get_svc_arg(svc_sp,0);
+	struct task *t=lookup_task_for_name(name);
+	if (!t) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,48);
+		return 0;
+	}
+	if (t==current) {
+		SET_PRIO(t,t->prio_flags|0x8);
+		DEBUGP(DLEV_SCHED,"blocking current task: %s\n",current->name);
+		switch_on_return();
+	} else {
+		struct task *p=ready[GET_PRIO(t)];
+		struct task * volatile *p_prev=&ready[GET_PRIO(t)];
+		SET_PRIO(t,t->prio_flags|0x8);
+		while(p) {
+			if (p==t) {
+				(*p_prev)=p->next;
+				p->next=0;
+				if (!ready[MAX_PRIO]){
+					ready[MAX_PRIO]=p;
+				} else {
+					ready_last[MAX_PRIO]->next=p;
+				}
+				ready_last[MAX_PRIO]=p;
+				break;
+			}
+			p_prev=&p->next;
+			p=p->next;
+		}
+		DEBUGP(DLEV_SCHED,"blocking task: %s, current %s\n",t->name,current->name);
+	}
+	set_svc_ret(svc_sp,0);
+	TRACE_EXIT(HANDLE_SYSCALL,49);
+	return 0;
+}
+
+static int unblock_task(unsigned long int *svc_sp) {
+	char *name=(char *)get_svc_arg(svc_sp,0);
+	struct task *b=ready[MAX_PRIO];
+	struct task * volatile *b_prev=&ready[MAX_PRIO];
+	struct task *t=lookup_task_for_name(name);
+	int prio;
+	if (!t) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,50);
+		return 0;
+	}
+	prio=t->prio_flags&0xf;
+	if (prio>MAX_PRIO) prio=MAX_PRIO;
+	if (prio<MAX_PRIO) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,51);
+		return 0;
+	}
+
+	while(b) {
+		if (b==t) {
+			(*b_prev)=b->next;
+			goto set_ready;
+		}
+		b_prev=&b->next;
+		b=b->next;
+	}
+	set_svc_ret(svc_sp,-1);
+	TRACE_EXIT(HANDLE_SYSCALL,52);
+	return 0;
+
+set_ready:
+	DEBUGP(DLEV_SCHED,"unblocking task: %s, current %s\n",t->name,current->name);
+	t->next=0;
+	SET_PRIO(t,t->prio_flags&3);
+	if(ready[GET_PRIO(t)]) {
+		ready_last[GET_PRIO(t)]->next=t;
+	} else {
+		ready[GET_PRIO(t)]=t;
+	}
+	ready_last[GET_PRIO(t)]=t;
+
+	set_svc_ret(svc_sp,0);
+	TRACE_EXIT(HANDLE_SYSCALL,53);
+	return 0;
+}
+
+static int setprio_task(unsigned long int *svc_sp) {
+	char *name=(char *)get_svc_arg(svc_sp,0);
+	int prio=get_svc_arg(svc_sp,1);
+	int curr_prio=GET_PRIO(current);
+	struct task *t=lookup_task_for_name(name);
+	if (!t) {
+		set_svc_ret(svc_sp,-1);
+		TRACE_EXIT(HANDLE_SYSCALL,54);
+		return 0;
+	}
+	if (prio>MAX_PRIO) {
+		set_svc_ret(svc_sp,-2);
+		TRACE_EXIT(HANDLE_SYSCALL,55);
+		return 0;
+	}
+	if (t==current) {
+		SET_PRIO(t,prio);
+		if (curr_prio<prio) { /* degrading prio of current, shall we switch? */
+			int i=0;
+			while(!ready[i]){
+				i++;
+				if (i>=prio) break;
+			}
+			if (i<prio) {
+				DEBUGP(DLEV_SCHED,"degrading current prio task: name %s\n",current->name);
+				switch_on_return();
+			}
+		}
+	} else {
+		int tprio=((t->prio_flags&0xf)>MAX_PRIO)?MAX_PRIO:(t->prio_flags&0xf);
+		struct task *p=ready[tprio];
+		struct task * volatile *p_prev=&ready[tprio];
+		SET_PRIO(t,prio);
+		while(p) {
+			if (p==t) {
+				(*p_prev)=p->next;
+				p->next=0;
+				if (!ready[prio]){
+					ready[prio]=p;
+				} else {
+					ready_last[prio]->next=p;
+				}
+				ready_last[prio]=p;
+				goto check_resched;
+			}
+			p_prev=&p->next;
+			p=p->next;
+		}
+		DEBUGP(DLEV_SCHED,"setprio task: name %s prio=%d, current %s\n",t->name,t->prio_flags,current->name);
+	}
+	set_svc_ret(svc_sp,0);
+	TRACE_EXIT(HANDLE_SYSCALL,56);
+	return 0;
+
+check_resched:
+	if (prio<curr_prio) {
+		DEBUGP(DLEV_SCHED,"setprio task: name %s prio=%d, current %s, reschedule\n",t->name,t->prio_flags,current->name);
+		switch_on_return();
+	}
+	set_svc_ret(svc_sp,0);
+	TRACE_EXIT(HANDLE_SYSCALL,57);
+	return 0;
+}
+
+static int set_debug_level(unsigned long int *svc_sp) {
+	unsigned int dl =get_svc_arg(svc_sp,0);
+	if (dl>0) {
+		set_svc_ret(svc_sp,-1);
+	}
+#ifdef DEBUG
+	dbglev=dl;
+	set_svc_ret(svc_sp,0);
+#else
+	set_svc_ret(svc_sp,-1);
+#endif
+	TRACE_EXIT(HANDLE_SYSCALL,58);
+	return 0;
+}
+
 void *handle_syscall(unsigned long int *svc_sp) {
 	unsigned int svc_number;
 	TRACE_ENTER(HANDLE_SYSCALL);
@@ -339,71 +1008,7 @@ void *handle_syscall(unsigned long int *svc_sp) {
 	svc_number=get_svc_number(svc_sp);
 	switch(svc_number) {
 		case SVC_CREATE_TASK: {
-			struct task_create_args *tca=
-				(struct task_create_args *)get_svc_arg(svc_sp,0);
-			struct task *t=(struct task *)get_page();
-			unsigned char *estack=((unsigned char *)t)+2048;
-			unsigned long int *stackp=(unsigned long int *)(estack+2048);
-			unsigned char *uval=tca->val;
-
-			if (!t) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,1);
-				return 0;
-			}
-
-			memset(t,0,sizeof(struct task));
-			if (allocate_task_id(t)<0) {
-				sys_printf("proc table full\n");
-				put_page(t);
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,2);
-				return 0;
-			}
-
-			map_tmp_stack_page((unsigned long int)estack,10);
-
-			if (tca->prio>MAX_PRIO) {
-				unmap_tmp_stack_page();
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,3);
-				return 0;
-			}
-			__builtin_memset(estack,0,2048);
-			t->estack=estack;
-			if (tca->val_size) {
-				int aval_size=(tca->val_size+7)&~0x7;
-				uval=((unsigned char *)stackp)-aval_size;
-				memcpy(uval,tca->val,tca->val_size);
-				stackp=(unsigned long int *)uval;
-			}
-			t->asp=current->asp;
-			t->asp->ref++;
-			setup_return_stack(t,(void *)stackp,(unsigned long int)tca->fnc,(unsigned long int)__usr_svc_destroy_self,(void *)uval,8);
-
-			t->state=TASK_STATE_READY;
-			t->name=tca->name;
-			SET_PRIO(t,tca->prio);
-			t->next2=troot;
-			troot=t;
-
-			if(!ready[tca->prio]) {
-				ready[tca->prio]=t;
-			} else {
-				ready_last[tca->prio]->next=t;
-			}
-			ready_last[tca->prio]=t;
-			unmap_tmp_stack_page();
-
-			if (tca->prio<GET_PRIO(current)) {
-				DEBUGP(DLEV_SCHED,"Create task: %s, switch out %s\n", t->name, current->name);
-				switch_on_return();
-			} else {
-				DEBUGP(DLEV_SCHED,"Create task: %s\n", t->name);
-			}
-
-			set_svc_ret(svc_sp,0);
-			TRACE_EXIT(HANDLE_SYSCALL,4);
+			create_task(svc_sp);
 			return 0;
 			break;
 		}
@@ -448,573 +1053,53 @@ done:
 			return 0;
 			break;
 		}
+		/* IO functions */
 		case SVC_IO_OPEN: {
-			struct driver *drv;
-			struct device_handle *dh;
-			char *drvname=(char *)get_svc_arg(svc_sp,0);
-			int  ufd;
-			drv=driver_lookup(drvname);
-			if (!drv) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,9);
-				return 0;
-			}
-			ufd=get_user_fd(((struct driver *)0xffffffff),0);
-			if (ufd<0) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,10);
-				return 0;
-			}
-			dh=drv->ops->open(drv->instance,sys_drv_wakeup,current);
-			if (!dh) {
-				detach_driver_fd(&fd_tab[ufd]);
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,11);
-				return 0;
-			}
-			dh->user_data1=ufd;
-			fd_tab[ufd].driver=drv;
-			fd_tab[ufd].dev_handle=dh;
-			fd_tab[ufd].flags=0;
-			set_svc_ret(svc_sp,ufd);
-			TRACE_EXIT(HANDLE_SYSCALL,12);
+			io_open(svc_sp);
 			return 0;
 		}
 		case SVC_IO_READ: {
-			int fd=(int)get_svc_arg(svc_sp,0);
-			if (fd<0) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,13);
-				return 0;
-			}
-			{
-			int rc;
-			struct user_fd *fdd=&fd_tab[fd];
-			struct driver *driver=fdd->driver;
-			struct device_handle *dh=fdd->dev_handle;
-			if (!driver) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,14);
-				return 0;
-			}
-
-			current->blocker.dh=dh;
-			current->blocker.ev=EV_READ;
-
-			while(1) {
-				rc=driver->ops->control(dh,RD_CHAR,(void *)get_svc_arg(svc_sp,1),get_svc_arg(svc_sp,2));
-				if (rc==-DRV_AGAIN&&(!fdd->flags&O_NONBLOCK)) {
-					current->blocker.driver=driver;
-					sys_sleepon(&current->blocker,0);
-				} else {
-					break;
-				}
-			}
-			current->blocker.ev=0;
-			set_svc_ret(svc_sp,rc);
-			TRACE_EXIT(HANDLE_SYSCALL,15);
+			io_read(svc_sp);
 			return 0;
-			}
 		}
 		case SVC_IO_WRITE: {
-			int fd=(int)get_svc_arg(svc_sp,0);
-			if (fd<0) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,16);
-				return 0;
-			}
-			{
-			struct user_fd *fdd=&fd_tab[fd];
-			struct driver *driver=fdd->driver;
-			struct device_handle *dh=fdd->dev_handle;
-			int rc=0;
-			int done=0;
-			if (!driver) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,17);
-				return 0;
-			}
-
-			current->blocker.dh=dh;
-			current->blocker.ev=EV_WRITE;
-
-again:
-			rc=driver->ops->control(dh,WR_CHAR,(void *)get_svc_arg(svc_sp,1)+done,get_svc_arg(svc_sp,2)-done);
-
-			if (rc==-DRV_AGAIN&&(!(fdd->flags&O_NONBLOCK))) {
-				current->blocker.driver=driver;
-				sys_sleepon(&current->blocker,0);
-				TRACE_EXIT(HANDLE_SYSCALL,18);
-				goto again;
-			}
-
-			if (rc==-DRV_INPROGRESS&&(!(fdd->flags&O_NONBLOCK))) {
-				int result;
-				current->blocker.driver=driver;
-				sys_sleepon(&current->blocker,0);
-				rc=driver->ops->control(dh,WR_GET_RESULT,&result,sizeof(result));
-				current->blocker.ev=0;
-				if (current->blocker.wake) {
-					current->blocker.wake=0;
-					sys_printf("clearing old wake\n");
-				}
-				if (rc<0) {
-					set_svc_ret(svc_sp,rc);
-				} else {
-					set_svc_ret(svc_sp,result);
-				}
-				TRACE_EXIT(HANDLE_SYSCALL,19);
-				return 0;
-			}
-			if (rc>=0) {
-				done+=rc;
-				if ((done!=get_svc_arg(svc_sp,2))&&(!(fdd->flags&O_NONBLOCK))) {
-					goto again;
-				}
-			} else {
-				current->blocker.ev=0;
-				if (current->blocker.wake) {
-					current->blocker.wake=0;
-					sys_printf("clearing old wake\n");
-				}
-				set_svc_ret(svc_sp,rc);
-				TRACE_EXIT(HANDLE_SYSCALL,20);
-				return 0;
-			}
-
-			current->blocker.ev=0;
-			if (current->blocker.wake) {
-				current->blocker.wake=0;
-				sys_printf("clearing old wake\n");
-			}
-			set_svc_ret(svc_sp,done);
-			TRACE_EXIT(HANDLE_SYSCALL,21);
+			io_write(svc_sp);
 			return 0;
-			}
 		}
 		case SVC_IO_CONTROL: {
-			int	fd	=(int)get_svc_arg(svc_sp,0);
-			if (fd<0) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,22);
-				return 0;
-			}
-			{
-			struct	user_fd		*fdd=&fd_tab[fd];
-			struct	driver		*driver=fdd->driver;
-			struct	device_handle	*dh=fdd->dev_handle;
-			int	ufd;
-			int	rc;
-
-			if (!driver) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,23);
-				return 0;
-			}
-
-			if (get_svc_arg(svc_sp,1)==DYNOPEN) {
-				struct dyn_open_args doargs;
-
-				doargs.name=(char *)get_svc_arg(svc_sp,2);
-				ufd=get_user_fd(((struct driver *)0xffffffff),0);
-				if (ufd<0) {
-					set_svc_ret(svc_sp,-1);
-					TRACE_EXIT(HANDLE_SYSCALL,24);
-					return 0;
-				}
-
-				rc=driver->ops->control(dh,DYNOPEN,(void *)&doargs,get_svc_arg(svc_sp,3));
-				if (rc<0) {
-					detach_driver_fd(&fd_tab[ufd]);
-					set_svc_ret(svc_sp,-1);
-					TRACE_EXIT(HANDLE_SYSCALL,25);
-					return 0;
-				}
-				doargs.dh->user_data1=ufd;
-				fd_tab[ufd].driver=driver;
-				fd_tab[ufd].dev_handle=doargs.dh;
-				fd_tab[ufd].flags=0;
-				set_svc_ret(svc_sp,ufd);
-				TRACE_EXIT(HANDLE_SYSCALL,26);
-				return 0;
-			}
-
-			if (get_svc_arg(svc_sp,1)==F_SETFL) {
-				fdd->flags=get_svc_arg(svc_sp,2);
-				TRACE_EXIT(HANDLE_SYSCALL,27);
-				return 0;
-			}
-			if (get_svc_arg(svc_sp,1)==F_GETFL) {
-				set_svc_ret(svc_sp,fdd->flags);
-				TRACE_EXIT(HANDLE_SYSCALL,28);
-				return 0;
-			}
-			if (get_svc_arg(svc_sp,1)==IO_POLL) {
-poll_again:
-				current->blocker.dh=dh;
-				current->blocker.ev=EV_STATE;
-				rc=driver->ops->control(dh,IO_POLL,(void *)get_svc_arg(svc_sp,2),get_svc_arg(svc_sp,3));
-
-				if (rc==-DRV_AGAIN&&(!(fdd->flags&O_NONBLOCK))) {
-					current->blocker.driver=driver;
-					sys_sleepon(&current->blocker,0);
-					goto poll_again;
-				}
-				current->blocker.ev=0;
-				set_svc_ret(svc_sp,rc);
-				TRACE_EXIT(HANDLE_SYSCALL,29);
-				return 0;
-			}
-			rc=driver->ops->control(dh,get_svc_arg(svc_sp,1),(void *)get_svc_arg(svc_sp,2),get_svc_arg(svc_sp,3));
-			current->blocker.ev=0;
-			set_svc_ret(svc_sp,rc);
-			TRACE_EXIT(HANDLE_SYSCALL,30);
+			io_control(svc_sp);
 			return 0;
-			}
 		}
 		case SVC_IO_LSEEK: {
-			int fd=(int)get_svc_arg(svc_sp,0);
-			if (fd<0) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,31);
-				return 0;
-			}
-			{
-			struct driver *driver=fd_tab[fd].driver;
-			struct device_handle *dh=fd_tab[fd].dev_handle;
-			int rc;
-			if (!driver) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,32);
-				return 0;
-			}
-			rc=driver->ops->control(dh,IO_LSEEK,(void *)get_svc_arg(svc_sp,1),get_svc_arg(svc_sp,2));
-			set_svc_ret(svc_sp,rc);
-			TRACE_EXIT(HANDLE_SYSCALL,33);
+			io_lseek(svc_sp);
 			return 0;
-			}
 		}
 		case SVC_IO_CLOSE: {
-			int fd=(int)get_svc_arg(svc_sp,0);
-			if (fd<0) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,34);
-				return 0;
-			}
-			if (!fd) {
-				sys_printf("someone tried to close the console\n");
-				TRACE_EXIT(HANDLE_SYSCALL,35);
-				return 0;
-			}
-			{
-			struct driver *driver=fd_tab[fd].driver;
-			struct device_handle *dh=fd_tab[fd].dev_handle;
-			int rc;
-			if (!driver) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,36);
-				return 0;
-			}
-
-			detach_driver_fd(&fd_tab[fd]);
-			rc=driver->ops->close(dh);
-			set_svc_ret(svc_sp,rc);
-			TRACE_EXIT(HANDLE_SYSCALL,37);
+			io_close(svc_sp);
 			return 0;
-			}
 		}
 		case SVC_IO_SELECT: {
-			struct sel_args *sel_args=(struct sel_args *)get_svc_arg(svc_sp,0);
-			int nfds=sel_args->nfds;
-			fd_set rfds=*sel_args->rfds;
-			fd_set wfds=*sel_args->wfds;
-			fd_set stfds=*sel_args->stfds;
-			unsigned int *tout=sel_args->tout;
-			int i;
-			unsigned long int cpu_flags;
-
-			sel_args->nfds=0;
-			*sel_args->rfds=0;
-			*sel_args->wfds=0;
-			*sel_args->stfds=0;
-
-			current->sel_data.nfds=0;
-			current->sel_data.rfds=0;
-			current->sel_data.wfds=0;
-			current->sel_data.stfds=0;
-
-			current->sel_data_valid=1;
-			for(i=0;i<nfds;i++) {
-				if (wfds&(1<<i)) {
-					struct driver *driver=fd_tab[i].driver;
-					struct device_handle *dh=fd_tab[i].dev_handle;
-					if (driver) {
-						if (driver->ops->control(dh,IO_POLL,(void *)EV_WRITE,0)) {
-							*sel_args->wfds=(1<<i);
-							set_svc_ret(svc_sp,1);
-							TRACE_EXIT(HANDLE_SYSCALL,38);
-							return 0;
-						}
-					} else {
-						set_svc_ret(svc_sp,-1);
-						TRACE_EXIT(HANDLE_SYSCALL,39);
-						return 0;
-					}
-				}
-			}
-
-			for(i=0;i<nfds;i++) {
-				if (rfds&(1<<i)) {
-					struct driver *driver=fd_tab[i].driver;
-					struct device_handle *dh=fd_tab[i].dev_handle;
-					if (driver) {
-						if (driver->ops->control(dh,IO_POLL,(void *)EV_READ,0)) {
-							*sel_args->rfds=(1<<i);
-							set_svc_ret(svc_sp,1);
-							TRACE_EXIT(HANDLE_SYSCALL,40);
-							return 0;
-						}
-					} else {
-						set_svc_ret(svc_sp,-1);
-						TRACE_EXIT(HANDLE_SYSCALL,41);
-						return 0;
-					}
-				}
-			}
-
-			for(i=0;i<nfds;i++) {
-				if (stfds&(1<<i)) {
-					struct driver *driver=fd_tab[i].driver;
-					struct device_handle *dh=fd_tab[i].dev_handle;
-					if (driver) {
-						if (driver->ops->control(dh,IO_POLL,(void *)EV_STATE,0)) {
-							*sel_args->stfds=(1<<i);
-							set_svc_ret(svc_sp,1);
-							TRACE_EXIT(HANDLE_SYSCALL,42);
-							return 0;
-						}
-					} else {
-						set_svc_ret(svc_sp,-1);
-						TRACE_EXIT(HANDLE_SYSCALL,43);
-						return 0;
-					}
-				}
-			}
-
-			current->blocker.driver=0;
-			cpu_flags=disable_interrupts();
-			if (!current->sel_data.nfds) {
-				sys_sleepon(&current->blocker,tout);
-			}
-			current->sel_data_valid=0;
-			restore_cpu_flags(cpu_flags);
-
-			*sel_args->rfds=current->sel_data.rfds;
-			*sel_args->wfds=current->sel_data.wfds;
-			*sel_args->stfds=current->sel_data.stfds;
-			set_svc_ret(svc_sp,current->sel_data.nfds);
-			TRACE_EXIT(HANDLE_SYSCALL,44);
+			io_select(svc_sp);
 			return 0;
 		}
 		case SVC_IO_MMAP: {
-			void *addr=(void *)get_svc_arg(svc_sp,0);
-			unsigned int len=(unsigned int)get_svc_arg(svc_sp,1);
-			int prot=(int)get_svc_arg(svc_sp,2);
-			int flags=(int)get_svc_arg(svc_sp,3);
-			int fd=(int)get_svc_arg(svc_sp,4);
-			long int offset=(long int)get_svc_arg(svc_sp,5);
-			struct driver *driver=fd_tab[fd].driver;
-			struct device_handle *dh=fd_tab[fd].dev_handle;
-			unsigned long int paddr;
-			unsigned long int vaddr;
-			unsigned long int start_vaddr;
-			unsigned int npages;
-			int i;
-			int rc;
-
-			sys_printf("IO_MMAP: addr=%x, len=%d, prot=%d, flags=%d, fd=%d, offset=%d\n",
-				addr,len,prot,flags,fd,offset);
-			if (!driver) {
-				set_svc_ret(svc_sp,0);
-				TRACE_EXIT(HANDLE_SYSCALL,45);
-				return 0;
-			}
-			npages=((len-1)/PAGE_SIZE)+1;
-			paddr=driver->ops->control(dh,IO_MMAP,(void *)offset,len);
-			vaddr=get_mmap_vaddr(current,len);
-
-			sys_printf("IO_MMAP: need %d pages, vaddr %x, paddr %x\n", npages, vaddr, paddr);
-			start_vaddr=vaddr;
-			for(i=0;i<npages;i++) {
-				rc=mapmem(current,vaddr,paddr, MAP_NO_CACHE | MAP_WRITE);
-				if (rc<0) {
-					set_svc_ret(svc_sp,0);
-					TRACE_EXIT(HANDLE_SYSCALL,46);
-					return 0;
-				}
-				vaddr+=PAGE_SIZE;
-				paddr+=PAGE_SIZE;
-			}
-			set_svc_ret(svc_sp,start_vaddr);
-			TRACE_EXIT(HANDLE_SYSCALL,47);
+			io_mmap(svc_sp);
 			return 0;
 		}
 		case SVC_BLOCK_TASK: {
-			char *name=(char *)get_svc_arg(svc_sp,0);
-			struct task *t=lookup_task_for_name(name);
-			if (!t) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,48);
-				return 0;
-			}
-			if (t==current) {
-				SET_PRIO(t,t->prio_flags|0x8);
-				DEBUGP(DLEV_SCHED,"blocking current task: %s\n",current->name);
-				switch_on_return();
-			} else {
-				struct task *p=ready[GET_PRIO(t)];
-				struct task * volatile *p_prev=&ready[GET_PRIO(t)];
-				SET_PRIO(t,t->prio_flags|0x8);
-				while(p) {
-					if (p==t) {
-						(*p_prev)=p->next;
-						p->next=0;
-						if (!ready[MAX_PRIO]){
-							ready[MAX_PRIO]=p;
-						} else {
-							ready_last[MAX_PRIO]->next=p;
-						}
-						ready_last[MAX_PRIO]=p;
-						break;
-					}
-					p_prev=&p->next;
-					p=p->next;
-				}
-				DEBUGP(DLEV_SCHED,"blocking task: %s, current %s\n",t->name,current->name);
-			}
-			set_svc_ret(svc_sp,0);
-			TRACE_EXIT(HANDLE_SYSCALL,49);
+			block_task(svc_sp);
 			return 0;
 		}
 		case SVC_UNBLOCK_TASK: {
-			char *name=(char *)get_svc_arg(svc_sp,0);
-			struct task *b=ready[MAX_PRIO];
-			struct task * volatile *b_prev=&ready[MAX_PRIO];
-			struct task *t=lookup_task_for_name(name);
-			int prio;
-			if (!t) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,50);
-				return 0;
-			}
-			prio=t->prio_flags&0xf;
-			if (prio>MAX_PRIO) prio=MAX_PRIO;
-			if (prio<MAX_PRIO) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,51);
-				return 0;
-			}
-
-			while(b) {
-				if (b==t) {
-					(*b_prev)=b->next;
-					goto set_ready;
-				}
-				b_prev=&b->next;
-				b=b->next;
-			}
-			set_svc_ret(svc_sp,-1);
-			TRACE_EXIT(HANDLE_SYSCALL,52);
-			return 0;
-set_ready:
-			DEBUGP(DLEV_SCHED,"unblocking task: %s, current %s\n",t->name,current->name);
-			t->next=0;
-			SET_PRIO(t,t->prio_flags&3);
-			if(ready[GET_PRIO(t)]) {
-				ready_last[GET_PRIO(t)]->next=t;
-			} else {
-				ready[GET_PRIO(t)]=t;
-			}
-			ready_last[GET_PRIO(t)]=t;
-
-			set_svc_ret(svc_sp,0);
-			TRACE_EXIT(HANDLE_SYSCALL,53);
+			unblock_task(svc_sp);
 			return 0;
 		}
 		case SVC_SETPRIO_TASK: {
-			char *name=(char *)get_svc_arg(svc_sp,0);
-			int prio=get_svc_arg(svc_sp,1);
-			int curr_prio=GET_PRIO(current);
-			struct task *t=lookup_task_for_name(name);
-			if (!t) {
-				set_svc_ret(svc_sp,-1);
-				TRACE_EXIT(HANDLE_SYSCALL,54);
-				return 0;
-			}
-			if (prio>MAX_PRIO) {
-				set_svc_ret(svc_sp,-2);
-				TRACE_EXIT(HANDLE_SYSCALL,55);
-				return 0;
-			}
-			if (t==current) {
-				SET_PRIO(t,prio);
-				if (curr_prio<prio) { /* degrading prio of current, shall we switch? */
-					int i=0;
-					while(!ready[i]){
-						i++;
-						if (i>=prio) break;
-					}
-					if (i<prio) {
-						DEBUGP(DLEV_SCHED,"degrading current prio task: name %s\n",current->name);
-						switch_on_return();
-					}
-				}
-			} else {
-				int tprio=((t->prio_flags&0xf)>MAX_PRIO)?MAX_PRIO:(t->prio_flags&0xf);
-				struct task *p=ready[tprio];
-				struct task * volatile *p_prev=&ready[tprio];
-				SET_PRIO(t,prio);
-				while(p) {
-					if (p==t) {
-						(*p_prev)=p->next;
-						p->next=0;
-						if (!ready[prio]){
-							ready[prio]=p;
-						} else {
-							ready_last[prio]->next=p;
-						}
-						ready_last[prio]=p;
-						goto check_resched;
-					}
-					p_prev=&p->next;
-					p=p->next;
-				}
-				DEBUGP(DLEV_SCHED,"setprio task: name %s prio=%d, current %s\n",t->name,t->prio_flags,current->name);
-			}
-			set_svc_ret(svc_sp,0);
-			TRACE_EXIT(HANDLE_SYSCALL,56);
-			return 0;
-check_resched:
-			if (prio<curr_prio) {
-				DEBUGP(DLEV_SCHED,"setprio task: name %s prio=%d, current %s, reschedule\n",t->name,t->prio_flags,current->name);
-				switch_on_return();
-			}
-			set_svc_ret(svc_sp,0);
-			TRACE_EXIT(HANDLE_SYSCALL,57);
+			setprio_task(svc_sp);
 			return 0;
 		}
 		case SVC_SETDEBUG_LEVEL: {
-			unsigned int dl =get_svc_arg(svc_sp,0);
-			if (dl>0) {
-				set_svc_ret(svc_sp,-1);
-			}
-#ifdef DEBUG
-			dbglev=dl;
-			set_svc_ret(svc_sp,0);
-#else
-			set_svc_ret(svc_sp,-1);
-#endif
-			TRACE_EXIT(HANDLE_SYSCALL,58);
+			set_debug_level(svc_sp);
 			return 0;
 		}
 		case SVC_REBOOT: {
