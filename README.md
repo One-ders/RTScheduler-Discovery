@@ -66,4 +66,9 @@ With the GCC ARM compiler installed and prerequisites met, build your project us
 make
 ```
 
+## Documentation
+
+- [Technical Documentation](TECHNICAL_DOCUMENTATION.md) - Architecture, design patterns, and deep dives
+
+
 For more information on configuration and building, refer to the board-specific documentation in the `boards/` directory.
