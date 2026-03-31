@@ -166,6 +166,11 @@ ifeq ($(KREL),)
 usr_drv:
 endif
 
+ifneq ($(KREL),)
+$(OBJ)/os/os.o:
+	make -C $(KREL)
+endif
+
 ifeq ($(KREL),)
 $(OBJ)/drv_obj/stddrv.o: $(OBJ)/stddrv
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
