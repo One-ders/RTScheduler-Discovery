@@ -1,13 +1,69 @@
 # RTScheduler-Discovery
-A realtime preemptive scheduler for the STM Discovery boards
 
-This is the Core base directory. It contains the OS + a small blinking application.
+A realtime preemptive scheduler for the STM Discovery boards.
 
-To use it, create a directory for your application. Copy one of the applications OBDI (chevy tpi analyzer) or cec_gw.
-In the makefile have the macro KREL point to a board in a base release diretory.
+## Table of Contents
 
-f.ex. KREL=../RTScheduler-Discovery/boards/MB997C
+- [Overview](#overview)
+- [Repository Structure](#repository-structure)
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [Building](#building)
 
-copy the config.h from the board type here, and update it wrg. drivers, io pins ...
+## Overview
 
-to build it, an gcc arm compiler is needed...
+RTScheduler-Discovery is a real-time preemptive scheduler implementation for ARM-based STM Discovery development boards. This project provides the core OS and a foundation for building embedded real-time applications.
+
+## Repository Structure
+
+The repository is organized as follows:
+
+- **`arch/`** - Architecture-specific code and implementations
+- **`boards/`** - Board definitions and hardware configurations
+- **`drivers/`** - Device drivers for hardware peripherals
+- **`incl/`** - Header files and public interfaces
+- **`os/`** - Core operating system implementation
+- **`stddrv/`** - Standard drivers
+- **`stdlib/`** - Standard library utilities
+- **`usr/`** - User applications and examples
+
+## Prerequisites
+
+To build RTScheduler-Discovery, you will need:
+
+- **GCC ARM Compiler** - GNU Arm Embedded Toolchain or equivalent
+- **Make** - Build system
+
+## Getting Started
+
+1. **Create a project directory** for your application
+2. **Copy an existing application** as a template (e.g., OBDI for Chevy TPI analyzer, or cec_gw)
+3. **Update your Makefile** to point to the base release:
+   ```makefile
+   KREL=../RTScheduler-Discovery/boards/MB997C
+   ```
+4. **Copy and configure** the board-specific `config.h`:
+   - Copy `config.h` from your board type
+   - Update driver configuration
+   - Update I/O pin assignments
+
+## Project Structure
+
+Each board configuration in the `boards/` directory contains:
+- Hardware definitions
+- Pin mappings
+- Device configurations
+- Board-specific settings
+
+Update the `config.h` with respect to your drivers, I/O pins, and hardware setup.
+
+## Building
+
+With the GCC ARM compiler installed and prerequisites met, build your project using:
+
+```bash
+make
+```
+
+For more information on configuration and building, refer to the board-specific documentation in the `boards/` directory.
