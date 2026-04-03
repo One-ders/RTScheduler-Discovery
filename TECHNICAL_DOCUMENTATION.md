@@ -9,8 +9,8 @@ The RTScheduler-Discovery is a production-grade, real-time preemptive scheduler 
 ### Scheduler Fundamentals
 
 **Priority Levels:** 5 levels (0-4) + 1 blocked priority (5)
-- Priority 0 = Lowest priority (background tasks)
-- Priority 4 = Highest priority (critical real-time tasks)
+- Priority 0 = Highest priority (critical real-time tasks)
+- Priority 4 = Lowest priority (background tasks)
 - Priority 5 = Blocked (used internally for suspended tasks)
 
 **Task States:**
