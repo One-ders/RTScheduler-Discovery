@@ -1,0 +1,12 @@
+# Blockera de kompilerade testbinären
+vsnprintf_test
+sprintf_test
+dprintf_test
+
+# Blockera alla temporära objektfiler
+*.o
+
+# Blockera de symboliska länkarna till källkodsfilerna
+usr_io.c
+string.c
+

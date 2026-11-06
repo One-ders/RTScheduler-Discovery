@@ -31,7 +31,7 @@
  * @(#)io.h
  */
 
-int fprintf(int fd, const char *format, ...);
-#define printf(b...) fprintf(0,b)
+int dprintf(int fd, const char *format, ...);
+#define printf(b...) dprintf(0,b)
 
 int readline_r(int fd, char *prompt, char *buf, int buf_size);

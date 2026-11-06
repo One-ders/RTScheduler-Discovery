@@ -17,7 +17,7 @@ typedef long unsigned int size_t;
 void *memset(void *m, int c, size_t count);
 void *memcpy(void *dest, const void *src, size_t n);
 int memcmp(const void *s1, const void *s2, size_t n);
-int ffs(long int i);
+int ffs(int i);
 int ffsl(long int i);
 
 char *strcpy(char *dest, const char *src);

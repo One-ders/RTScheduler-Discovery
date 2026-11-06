@@ -40,6 +40,11 @@
 #define TICSPERMIN	(100*60)
 #define TICSPERSEC	(100)
 
+//#define CHECK_BOUNDS(needed_space) ((p + (needed_space)) > ep)?1:0
+#define SPACE_AVAIL() ((ep-p)>0?(ep-p):0)
+#define MIN(a,b) ((a<b)?a:b)
+
+
 char *ts_format(unsigned int tics, char *buf, int bsize) {
 	unsigned int h=tics/TICSPERHOUR;
 	unsigned int min=(tics-(h*TICSPERHOUR))/TICSPERMIN;
@@ -53,10 +58,15 @@ char *ts_format(unsigned int tics, char *buf, int bsize) {
 int parse_fmt(const char *fmt, int *field_width, int *zero_fill) {
 	int i=0;
 	int val=0;
+	int ladj=0;
 	if ((*fmt)=='0') {
 		*zero_fill=1;
 		i++;
+	} else if ((*fmt)=='-') {
+		ladj=1;
+		i++;
 	}
+
 	if ((fmt[i]>='1')&&(fmt[i]<='9')) {
 		val=fmt[i]-'0';
 		i++;
@@ -66,7 +76,11 @@ int parse_fmt(const char *fmt, int *field_width, int *zero_fill) {
 			i++;
 		}
 	}
-	*field_width=val;
+	if (ladj) {
+		*field_width=-val;
+	} else {
+		*field_width=val;
+	}
 	if (i>3) while(1) {;}
 	if (i<0) while(1) {;}
 	return i;
@@ -76,90 +90,116 @@ int vsnprintf(char *sbuf, size_t sbuf_size, const char *fmt, va_list ap) {
 	int i=0;
 	char numericbuf[16];
 	char *p=sbuf;
+	char *ep=sbuf+sbuf_size;
 
 	while(1) {
 		int c=fmt[i++];
 		if (!c) break;
-		else if (c=='\n') {
-			memcpy(p,"\n\r",2);
-			p=p+2;
-			continue;
-		} else if (c=='%') {
+		if (c=='%') {
 			int prepend_zero=0, prepend_num=0;
 			i+=parse_fmt(&fmt[i],&prepend_num, &prepend_zero);
 			switch((c=fmt[i++])) {
 				case 's': {
 					char *s=va_arg(ap,char *);
 					int len=strlen(s);
-					memcpy(p,s,strlen(s));
+					if (prepend_num>0) {
+						if ((prepend_num-len)>0) {
+							int j;
+							for(j=0;j<(prepend_num-len);j++) {
+								memcpy(p," ",MIN(1,SPACE_AVAIL()));
+								p++;
+							}
+						}
+					}
+					memcpy(p,s,MIN(len,SPACE_AVAIL()));
 					p+=len;
 
-					if ((prepend_num-len)>0) {
-						int j;
-						for(j=0;j<(prepend_num-len);j++) {
-							memcpy(p," ",1);
-							p++;
+					if (prepend_num<0) {
+						prepend_num=-prepend_num;
+						if ((prepend_num-len)>0) {
+							int j;
+							for(j=0;j<(prepend_num-len);j++) {
+								memcpy(p," ",MIN(1,SPACE_AVAIL()));
+								p++;
+							}
 						}
 					}
 					break;
 				}
 				case 'c': {
 					int gruuk=va_arg(ap, int);
-					memcpy(p,(char *)&gruuk,1);
+					memcpy(p,(char *)&gruuk,MIN(1,SPACE_AVAIL()));
 					p++;
 					break;
 				}
 				case 'd': {
-					char *s=itoa(va_arg(ap,unsigned int),numericbuf, 16,
+					char *s;
+					if (prepend_num<0) prepend_num=0;
+					s=itoa(va_arg(ap,unsigned int),numericbuf, 16,
 								prepend_zero, prepend_num);
 					int len=strlen(s);
-					memcpy(p,s,len);
+					memcpy(p,s,MIN(len,SPACE_AVAIL()));
 					p+=len;
 					break;
 				}
 				case 'x': {
-					char *s=xtoa(va_arg(ap,unsigned int),numericbuf, 16,
+					char *s;
+					if (prepend_num<0) prepend_num=0;
+					s=xtoa(va_arg(ap,unsigned int),numericbuf, 16,
 							prepend_zero, prepend_num);
 					int len=strlen(s);
-					memcpy(p,s,len);
+					memcpy(p,s,MIN(len,SPACE_AVAIL()));
 					p+=len;
 					break;
 				}
 				case 't': {
 					char *s=ts_format(get_current_tic(),numericbuf, 16);
 					int len=strlen(s);
-					memcpy(p,s,len);
+					memcpy(p,s,MIN(len,SPACE_AVAIL()));
 					p+=len;
 					break;
 				}
-				default: {
-					memcpy(p,"%",1);
+				case '%': {
+					memcpy(p,"%",MIN(1,SPACE_AVAIL()));
 					p++;
-					memcpy(p,(char *)&c,1);
+					break;
+				}
+				default: {
+					memcpy(p,"%",MIN(1,SPACE_AVAIL()));
+					p++;
+					memcpy(p,(char *)&c,MIN(1,SPACE_AVAIL()));
 					p++;
 				}
 			}
 		} else {
-			memcpy(p,(char *)&c,1);
+			memcpy(p,(char *)&c,MIN(1,SPACE_AVAIL()));
 			p++;
 		}
 	}
-	*p=0;
-	return p-sbuf;
 
+	if (SPACE_AVAIL()) {
+		*p=0;
+	} else {
+		if (ep-p) {
+			*(--ep)=0;
+		}
+	}
+	return p-sbuf;
 }
 
-int fprintf(int fd, const char *fmt, ...) {
+int dprintf(int fd, const char *fmt, ...) {
 	int i=0;
 	va_list ap;
 	char numericbuf[16];
+	int tlen=0;
 
 	va_start(ap,fmt);
 	while(1) {
 		int c=fmt[i++];
 		if (!c) break;
 		else if (c=='\n') {
-			io_write(fd,"\n\r",2);
+			io_write(fd,"\n",1);
+			tlen++;
 			continue;
 		} else if (c=='%') {
 			int prepend_zero=0, prepend_num=0;
@@ -167,11 +207,26 @@ int fprintf(int fd, const char *fmt, ...) {
 			switch((c=fmt[i++])) {
 				case 's': {
 					char *s=va_arg(ap,char *);
-					int len=io_write(fd,s,strlen(s));
-					if ((prepend_num-len)>0) {
-						int j;
-						for(j=0;j<(prepend_num-len);j++) {
-							io_write(fd," ",1);
+					int len=strlen(s);
+					if (prepend_num>0) {
+						if ((prepend_num-len)>0) {
+							int j;
+							for(j=0;j<(prepend_num-len);j++) {
+								io_write(fd," ",1);
+								tlen++;
+							}
+						}
+					}
+					io_write(fd,s,len);
+					tlen+=len;
+					if (prepend_num<0) {
+						prepend_num=-prepend_num;
+						if ((prepend_num-len)>0) {
+							int j;
+							for(j=0;j<(prepend_num-len);j++) {
+								io_write(fd," ",1);
+								tlen++;
+							}
 						}
 					}
 					break;
@@ -179,39 +234,68 @@ int fprintf(int fd, const char *fmt, ...) {
 				case 'c': {
 					int gruuk=va_arg(ap, int);
 					io_write(fd,(char *)&gruuk,1);
+					tlen++;
 					break;
 				}
 				case 'd': {
-					char *s=itoa(va_arg(ap,unsigned int),numericbuf, 16,
+					char *s;
+
+					if (prepend_num<0) prepend_num=0;
+					s=itoa(va_arg(ap,unsigned int),numericbuf, 16,
 								prepend_zero, prepend_num);
 					io_write(fd,s,strlen(s));
+					tlen+=strlen(s);
 					break;
 				}
 				case 'x': {
-					char *s=xtoa(va_arg(ap,unsigned int),numericbuf, 16,
+					char *s;
+
+					if (prepend_num<0) prepend_num=0;
+					s=xtoa(va_arg(ap,unsigned int),numericbuf, 16,
 							prepend_zero, prepend_num);
 					io_write(fd,s,strlen(s));
+					tlen+=strlen(s);
 					break;
 				}
 				case 't': {
 					char *s=ts_format(get_current_tic(),numericbuf, 16);
 					io_write(fd,s,strlen(s));
+					tlen+=strlen(s);
+					break;
+				}
+				case '%': {
+					io_write(fd,"%",1);
+					tlen++;
 					break;
 				}
 				default: {
 					io_write(fd,"%",1);
 					io_write(fd,(char *)&c,1);
+					tlen+=2;
 				}
 			}
 		} else {
 			io_write(fd,(char *)&c,1);
+			tlen++;
 		}
 
 	}
 	va_end(ap);
-	return 0;
+	return tlen;
 }
 
+int sprintf(char *sbuf, const char *fmt, ...) {
+	va_list ap;
+	int ret;
+
+	va_start(ap, fmt);
+	ret = vsnprintf(sbuf, (size_t)__SIZE_MAX__/2, fmt, ap);
+	va_end(ap);
+
+	return ret;
+}
+
+#if 0
 int sprintf(char *sbuf, const char *fmt, ...) {
 	int i=0;
 	va_list ap;
@@ -290,6 +374,7 @@ int sprintf(char *sbuf, const char *fmt, ...) {
 	*p=0;
 	return p-sbuf;
 }
+#endif
 
 #define SET_CURSOR(BUF,X,Y) {BUF[0]=0x1b;BUF[1]='[';BUF[2]=X;BUF[3]=';';BUF[4]=Y;BUF[5]='H';BUF[6]=0;}
 #define FORW_CURSOR(BUF,X)	{BUF[0]=0x1b;BUF[1]='[';BUF[2]=X;BUF[3]='C';BUF[4]=0;}
@@ -350,7 +435,7 @@ int readline_r(int fd, char *prompt, char *buf, int buf_size) {
 	int tmp_h_ix=h_ix;
 	int state=STATE_C_NORMAL;
 
-	fprintf(fd,prompt);
+	dprintf(fd,prompt);
 
 	while (1) {
 		int ch=0;
