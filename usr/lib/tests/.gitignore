@@ -2,6 +2,7 @@
 vsnprintf_test
 sprintf_test
 dprintf_test
+readline_interactive
 
 # Blockera alla temporära objektfiler
 *.o

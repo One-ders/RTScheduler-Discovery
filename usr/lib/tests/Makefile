@@ -3,7 +3,7 @@ LOCAL_INCL=../../incl
 
 
 #all: vsnprintf_test vsnprintf_ref_test sprintf_test dprintf_test
-all: vsnprintf_test sprintf_test dprintf_test
+all: vsnprintf_test sprintf_test dprintf_test readline_interactive
 
 vsnprintf_ref_test: vsnprintf_test.o
 	$(CC) -o $@ $^
@@ -15,6 +15,10 @@ sprintf_test: sprintf_test.o usr_io.o string.o
 	$(CC) -o $@ $^
 
 dprintf_test: dprintf_test.o usr_io.o string.o
+	$(CC) -o $@ $^
+
+readline_interactive: readline_interactive.c usr_io.o string.o
+	$(CC) -o $@ $^
 
 usr_io.o: usr_io.c
 	$(CC) -I ${LOCAL_INCL} -c -o $@ $^

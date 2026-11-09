@@ -295,87 +295,6 @@ int sprintf(char *sbuf, const char *fmt, ...) {
 	return ret;
 }
 
-#if 0
-int sprintf(char *sbuf, const char *fmt, ...) {
-	int i=0;
-	va_list ap;
-	char numericbuf[16];
-	char *p=sbuf;
-
-	va_start(ap,fmt);
-	while(1) {
-		int c=fmt[i++];
-		if (!c) break;
-		else if (c=='\n') {
-			memcpy(p,"\n\r",2);
-			p=p+2;
-			continue;
-		} else if (c=='%') {
-			int prepend_zero=0, prepend_num=0;
-			i+=parse_fmt(&fmt[i],&prepend_num, &prepend_zero);
-			switch((c=fmt[i++])) {
-				case 's': {
-					char *s=va_arg(ap,char *);
-					int len=strlen(s);
-					memcpy(p,s,strlen(s));
-					p+=len;
-
-					if ((prepend_num-len)>0) {
-						int j;
-						for(j=0;j<(prepend_num-len);j++) {
-							memcpy(p," ",1);
-							p++;
-						}
-					}
-					break;
-				}
-				case 'c': {
-					int gruuk=va_arg(ap, int);
-					memcpy(p,(char *)&gruuk,1);
-					p++;
-					break;
-				}
-				case 'd': {
-					char *s=itoa(va_arg(ap,unsigned int),numericbuf, 16,
-								prepend_zero, prepend_num);
-					int len=strlen(s);
-					memcpy(p,s,len);
-					p+=len;
-					break;
-				}
-				case 'x': {
-					char *s=xtoa(va_arg(ap,unsigned int),numericbuf, 16,
-							prepend_zero, prepend_num);
-					int len=strlen(s);
-					memcpy(p,s,len);
-					p+=len;
-					break;
-				}
-				case 't': {
-					char *s=ts_format(get_current_tic(),numericbuf, 16);
-					int len=strlen(s);
-					memcpy(p,s,len);
-					p+=len;
-					break;
-				}
-				default: {
-					memcpy(p,"%",1);
-					p++;
-					memcpy(p,(char *)&c,1);
-					p++;
-				}
-			}
-		} else {
-			memcpy(p,(char *)&c,1);
-			p++;
-		}
-	}
-	va_end(ap);
-	*p=0;
-	return p-sbuf;
-}
-#endif
-
 #define SET_CURSOR(BUF,X,Y) {BUF[0]=0x1b;BUF[1]='[';BUF[2]=X;BUF[3]=';';BUF[4]=Y;BUF[5]='H';BUF[6]=0;}
 #define FORW_CURSOR(BUF,X)	{BUF[0]=0x1b;BUF[1]='[';BUF[2]=X;BUF[3]='C';BUF[4]=0;}
 #define BACK_CURSOR(BUF,X)	{BUF[0]=0x1b;BUF[1]='[';BUF[2]=X;BUF[3]='D';BUF[4]=0;}
@@ -426,7 +345,10 @@ static int back_cursor(int fd) {
 #define STATE_C_MULTI  1
 #define STATE_C_ARROW  2
 
-static char history[8][80];
+#define HISTORY_SIZE_SHIFT 3            // History size is 'power of two'
+#define HISTORY_SIZE (1<<HISTORY_SIZE_SHIFT)
+#define CMD_LEN 80
+static char history[HISTORY_SIZE][CMD_LEN];
 static int h_ix;
 
 int readline_r(int fd, char *prompt, char *buf, int buf_size) {
@@ -434,6 +356,10 @@ int readline_r(int fd, char *prompt, char *buf, int buf_size) {
 	int bix_max=0;
 	int tmp_h_ix=h_ix;
 	int state=STATE_C_NORMAL;
+	char tmpbuf[CMD_LEN];
+	int tmp_cmdlen=0;
+	int tmp_cursor_pos=0;
+
 
 	dprintf(fd,prompt);
 
@@ -441,61 +367,85 @@ int readline_r(int fd, char *prompt, char *buf, int buf_size) {
 		int ch=0;
 		int rc=io_read(fd,(char *)&ch,1);
 		if (rc!=1) return rc;
+		if (ch>127) continue;
 		if (state==STATE_C_MULTI) goto handle_special;
 		if (state==STATE_C_ARROW) goto handle_arrow;
 		switch(ch) {
-			case 0x08: {
+			case 0x08: case 0x7f: {
 				char ochar=' ';
 				int i;
 				/* backspace */
+				if (tmp_h_ix!=h_ix) {
+					strcpy(tmpbuf,history[tmp_h_ix&(HISTORY_SIZE-1)]);
+//(tmp_h_ix,tmpbuf,&bix_max);
+					tmp_h_ix=h_ix;
+//					printf("switchbuf, bix=%d\n",bix);
+				}
 				if (!bix)  break;
 				bix--;
 				bix_max--;
 				back_cursor(fd);
 				for(i=bix;i<bix_max;i++) {
-					buf[i]=buf[i+1];
-					io_write(fd,&buf[i],1);
+					tmpbuf[i]=tmpbuf[i+1];
+					io_write(fd,&tmpbuf[i],1);
 				}
-				buf[bix_max]=0;
+				tmpbuf[bix_max]=0;
 				io_write(fd,&ochar,1);
 				for (i=bix;i<bix_max;i++)
 					back_cursor(fd);
 				back_cursor(fd);
 				break;
 			}
-			case 0xd:
-				if (bix_max>bix) bix=bix_max;
-				buf[bix]=0;
+			case 0xd: // enter
+				if (bix_max>bix) {
+					int i;
+					for(i=bix;i<bix_max;i++) {
+						forw_cursor(fd);
+					}
+					bix=bix_max;
+				}
+				tmpbuf[bix]=0;
 				if ((bix<80)&&(bix>0)&&
-					(h_ix==tmp_h_ix)) {
-					__builtin_strcpy(history[h_ix&7],buf);
-					history[h_ix&7][bix]=0;
+					(h_ix==tmp_h_ix)&&
+					__builtin_strcmp(tmpbuf,history[(h_ix-1)&(HISTORY_SIZE-1)])) {
+					__builtin_strcpy(history[h_ix&7],tmpbuf);
+					history[h_ix&(HISTORY_SIZE-1)][bix]=0;
 					h_ix++;
 				}
+				strcpy(buf,tmpbuf);
 				return bix;
 			case 0x1b:  /* 1b */
 				state=STATE_C_MULTI;
 				break;
 			default: {
 				int ins=0;
-				tmp_h_ix=h_ix;
+				if (tmp_h_ix!=h_ix) {
+					strcpy(tmpbuf,history[tmp_h_ix&(HISTORY_SIZE-1)]);
+					tmp_h_ix=h_ix;
+				}
+
 				if (bix<bix_max) {
-					__builtin_memmove(&buf[bix+1],
-								&buf[bix],
+					__builtin_memmove(&tmpbuf[bix+1],
+								&tmpbuf[bix],
 								bix_max-bix);
 					bix_max++;
 					ins=1;
 				}
-				buf[bix++]=ch;
+
+				tmpbuf[bix++]=ch;
 				if (bix>=buf_size) {
-					buf[buf_size-1]=0;
-					return buf_size;
+					tmpbuf[buf_size-1]=0;
+					__builtin_strcpy(buf,tmpbuf);
+					return buf_size-1;
 				}
-				if (bix>bix_max) bix_max=bix;
+				if (bix>bix_max) {
+					bix_max=bix;
+					tmpbuf[bix_max]=0;
+				}
 				io_write(fd,(char *)&ch,1);
 				if (ins) {
 					int i;
-					io_write(fd,&buf[bix],bix_max-bix);
+					io_write(fd,&tmpbuf[bix],bix_max-bix);
 					for(i=0;i<bix_max-bix;i++) {
 						back_cursor(fd);
 					}
@@ -518,42 +468,63 @@ handle_special:
 handle_arrow:
 		switch(ch) {
 			case 0x41: {/* UP arrow */
+				char *hline_ptr;
 				char space=' ';
 				if ((tmp_h_ix>0) &&
-					((tmp_h_ix-1)>(h_ix-8))) {
-					buf[bix]=0;
-					__builtin_strcpy(history[tmp_h_ix&0x7],buf);
+					((tmp_h_ix-1)>(h_ix-(HISTORY_SIZE)))) {
 					tmp_h_ix--;
-					while(bix) {
+
+					if (bix_max>bix) { // move cursor to one after the last char
+						int i;
+						for(i=bix;i<bix_max;i++) {
+							forw_cursor(fd);
+						}
+						bix=bix_max;
+					}
+					while(bix_max) { // erase the line
 						back_cursor(fd);
 						io_write(fd,&space,1);
 						back_cursor(fd);
-						bix--;
+						bix_max--;
 					}
-					__builtin_strcpy(buf,history[tmp_h_ix&0x7]);
-					bix=strlen(buf);
-					buf[bix]=0;
+//					__builtin_strcpy(buf,history[tmp_h_ix&(HISTORY_SIZE-1)]);
+					hline_ptr=history[tmp_h_ix&(HISTORY_SIZE-1)];
+					bix=strlen(hline_ptr);
+//					buf[bix]=0;
 					bix_max=bix;
-					io_write(fd,buf,bix);
+					io_write(fd,hline_ptr,bix);
 				}
 				state=STATE_C_NORMAL;
 				break;
 			}
 			case 0x42: {/* Down arrow */
+				char *hline_ptr;
 				char space=' ';
 				if (tmp_h_ix<h_ix) {
 					tmp_h_ix++;
-					while(bix) {
+					if (bix_max>bix) { // possition curson at the end of the line
+						int i;
+						for(i=bix;i<bix_max;i++) {
+							forw_cursor(fd);
+						}
+						bix=bix_max;
+					}
+					while(bix_max) { // erase the line
 						back_cursor(fd);
 						io_write(fd,&space,1);
 						back_cursor(fd);
-						bix--;
+						bix_max--;
 					}
-					__builtin_strcpy(buf,history[tmp_h_ix&0x7]);
-					bix=strlen(buf);
-					buf[bix]=0;
-					bix_max=bix;
-					io_write(fd,buf,bix);
+					if (tmp_h_ix<h_ix) {
+						hline_ptr=history[tmp_h_ix&(HISTORY_SIZE-1)];
+						bix=strlen(hline_ptr);
+						bix_max=bix;
+						io_write(fd,hline_ptr,bix);
+					} else {
+						bix=strlen(tmpbuf);
+						bix_max=bix;
+						io_write(fd,tmpbuf,bix);
+					}
 				}
 
 				state=STATE_C_NORMAL;

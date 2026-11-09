@@ -148,6 +148,11 @@ ifeq ($(KREL),)
 usr_drv:
 endif
 
+ifneq ($(KREL),)
+$(OBJ)/os/os.o:
+	make -C $(KREL)
+endif
+
 ifeq ($(KREL),)
 $(OBJ)/drv_obj/stddrv.o: $(OBJ)/stddrv
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
@@ -251,6 +256,7 @@ clean:
 	rm -rf incl
 	rm -rf usr
 	rm -rf krel*
+	rm -f *.o
 	rm  -f ../../incl/io.h
 	rm  -f ../../incl/sys.h
 endif
