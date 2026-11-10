@@ -38,7 +38,7 @@ export CC:=arm-none-eabi-gcc
 export LD:=arm-none-eabi-ld
 export OBJCOPY:=arm-none-eabi-objcopy
 
-CFLAGS=-I. -I$(BDIR)/incl -I$(BDIR) -I$(BDIR)/incl/stm32/stm32f407/incl -I$(BDIR)/incl/stm32 -I$(BDIR)/incl/stm32/incl -g -O2 -DDEBUG -DBOARD_$(BOARD) -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin -ffrestanding
+CFLAGS=-I. -I$(BDIR)/incl -I$(BDIR) -I$(BDIR)/incl/stm32/stm32f407/incl -I$(BDIR)/incl/stm32 -I$(BDIR)/incl/stm32/incl -g -O2 -DDEBUG -DBOARD_$(BOARD) -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
 #CFLAGS_USR:=-I$(TOP)/usr/incl -I$(BDIR) -I$(GCC_BASE)/lib/gcc/arm-none-eabi/4.8.3/include -g -Os -DDEBUG -DBOARD_$(BOARD) -fno-builtin -ffreestanding -nostdinc -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
@@ -68,10 +68,11 @@ all: myCore
 rel: myCore
 	tar -cvzf krel-$(VERSION).tgz $(RELFILES)
 
-myCore: $(BASEBUILD_INCL) os version stm32f407 stm32 $(DTARGETS) usr.bin.o
+myCore: $(BASEBUILD_INCL) os system_params.o version stm32f407 stm32 $(DTARGETS) usr.bin.o
 	$(CC) $(LDFLAGS) -o $@ $(OBJ)/os/init_sect.o \
 				$(OBJ)/version.c \
 				$(OBJ)/os/os.o \
+				./system_params.o \
 				$(OBJ)/arch/stm32/stm32f407/stm32f407.o \
 				$(OBJ)/arch/stm32/stm32.o \
 				$(DOBJS) \
@@ -91,6 +92,8 @@ hr_timer: $(OBJ)/drv_obj/hr_timer.o
 gpio_drv: $(OBJ)/drv_obj/gpio_drv.o
 usart_drv: $(OBJ)/drv_obj/usart_drv.o
 led_drv: $(OBJ)/drv_obj/led_drv.o
+
+
 ifeq ($(KREL),)
 includes: $(BDIR)/incl $(BDIR)/usr/incl
 
@@ -183,6 +186,8 @@ $(OBJ)/drv_obj/usb_serial_drv.o: $(OBJ)/drivers/usb_serial
 $(OBJ)/drivers/usb_serial: $(TOP)/drivers/usb_serial
 	mkdir -p $@
 	lndir $< $@
+
+system_params.o: system_params.c
 
 $(OBJ)/arch/stm32/stm32.o: $(OBJ)/arch/stm32
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<

@@ -54,23 +54,23 @@ int generic_help_fnc(int argc, char **argv, struct Env *env) {
 	struct cmd *cmd=current_node->cmds;
 	struct cmd_node *cn=current_node->next;
 	int i=0;
-	fprintf(env->io_fd, "help called with %d args\n", argc);
-	fprintf(env->io_fd, "available commands:\n");
+	dprintf(env->io_fd, "help called with %d args\n", argc);
+	dprintf(env->io_fd, "available commands:\n");
 	while(cmd->name) {
-		fprintf(env->io_fd, "%s, ", cmd->name);
+		dprintf(env->io_fd, "%s, ", cmd->name);
 		cmd++;
 		i++;
 		if (0==(i%4)) {
-			fprintf(env->io_fd, "\n");
+			dprintf(env->io_fd, "\n");
 		}
 	}
 
 	while(cn){
-		fprintf(env->io_fd, "%s, ", cn->name);
+		dprintf(env->io_fd, "%s, ", cn->name);
 		cn=cn->next;
 	}
 
-	fprintf(env->io_fd, "\n");
+	dprintf(env->io_fd, "\n");
 	return 0;
 }
 
@@ -107,7 +107,7 @@ struct cmd *lookup_cmd(char *name, int fd) {
 		}
 		return 0;
 	}
-	fprintf(fd,"\ncmd %s, not found\n", name);
+	dprintf(fd,"\ncmd %s, not found\n", name);
 	return 0;
 }
 

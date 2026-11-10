@@ -99,10 +99,10 @@ int loop_read(int argc, char **argv, struct Env *env) {
 	#ERROR "dont have a led"
 #endif
 
-        fprintf(env->io_fd, "In reading pin and setting led when hi\n");
+        dprintf(env->io_fd, "In reading pin and setting led when hi\n");
 
 	if (argc!=2) {
-		 fprintf(env->io_fd, "need argument: PIN_NO\n");
+		 dprintf(env->io_fd, "need argument: PIN_NO\n");
 		 return -1;
 	}
 
@@ -125,7 +125,7 @@ int loop_read(int argc, char **argv, struct Env *env) {
 	} else if (strncmp(argv[1],"PI",2)==0) {
 		pin_group=0x80;
 	} else {
-		fprintf(env->io_fd, "Pin :%s: does not exist\n", argv[1]);
+		dprintf(env->io_fd, "Pin :%s: does not exist\n", argv[1]);
 		return -1;
 	}
 
@@ -134,7 +134,7 @@ int loop_read(int argc, char **argv, struct Env *env) {
 	pin_no=strtoul(pin_no_str,0,10);
 
 	if (pin_no>15) {
-		fprintf(env->io_fd, "Pin number must be between 0-15\n");
+		dprintf(env->io_fd, "Pin number must be between 0-15\n");
 		return -1;
 	}
 
@@ -142,7 +142,7 @@ int loop_read(int argc, char **argv, struct Env *env) {
 
 	rc=io_control(gpio_fd, GPIO_BIND_PIN, &pin, sizeof(pin));
 	if (rc<0) {
-		fprintf(env->io_fd, "Failed to bind pin %x, fault coude %d\n", pin, rc);
+		dprintf(env->io_fd, "Failed to bind pin %x, fault coude %d\n", pin, rc);
 		return -1;
 	}
 
@@ -152,18 +152,18 @@ int loop_read(int argc, char **argv, struct Env *env) {
 
 	rc=io_control(gpio_fd, GPIO_SET_FLAGS, &flags, sizeof(flags));
 	if (rc<0) {
-		fprintf(env->io_fd, "Failed to set pin %x flags, fault coude %d\n", pin, rc);
+		dprintf(env->io_fd, "Failed to set pin %x flags, fault coude %d\n", pin, rc);
 		return -1;
 	}
 
 	while(1) {
 		rc=io_control(gpio_fd, GPIO_SENSE_PIN, &pin_stat, sizeof(pin_stat));
 		if (rc<0) {
-			fprintf(env->io_fd, "error %d from GPIO_SENSE_PIN\n");
+			dprintf(env->io_fd, "error %d from GPIO_SENSE_PIN\n");
 			return -1;
 		}
 
-		fprintf(env->io_fd, "pin (%x) state: %d\n", pin, pin_stat);
+		dprintf(env->io_fd, "pin (%x) state: %d\n", pin, pin_stat);
 		if (pin_stat) {
 			rc=io_control(led_fd,LED_CTRL_ACTIVATE,&led,sizeof(led));
 		} else {
@@ -171,7 +171,7 @@ int loop_read(int argc, char **argv, struct Env *env) {
 		}
 		rc=io_control(env->io_fd, IO_POLL, (void *)EV_READ,0);
 		if (rc>0) {
-			fprintf(env->io_fd, "got input on keyboard, leaving");
+			dprintf(env->io_fd, "got input on keyboard, leaving");
 			break;
 		}
 	}
@@ -195,7 +195,7 @@ int set_pin(int argc, char **argv, struct Env *env) {
 	char buf[8];
 
 	if (argc!=3) {
-		 fprintf(env->io_fd, "need argument: PIN_NO level\n");
+		 dprintf(env->io_fd, "need argument: PIN_NO level\n");
 		 return -1;
 	}
 
@@ -218,7 +218,7 @@ int set_pin(int argc, char **argv, struct Env *env) {
 	} else if (strncmp(argv[1],"PI",2)==0) {
 		pin_group=0x80;
 	} else {
-		fprintf(env->io_fd, "Pin :%s: does not exist\n", argv[1]);
+		dprintf(env->io_fd, "Pin :%s: does not exist\n", argv[1]);
 		return -1;
 	}
 
@@ -227,7 +227,7 @@ int set_pin(int argc, char **argv, struct Env *env) {
 	pin_no=strtoul(pin_no_str,0,10);
 
 	if (pin_no>15) {
-		fprintf(env->io_fd, "Pin number must be between 0-15\n");
+		dprintf(env->io_fd, "Pin number must be between 0-15\n");
 		return -1;
 	}
 
@@ -236,13 +236,13 @@ int set_pin(int argc, char **argv, struct Env *env) {
 	level=strtoul(argv[2],0,10);
 
 	if ((level!=0) && (level!=1)) {
-		fprintf(env->io_fd, "level must be 0 or 1\n");
+		dprintf(env->io_fd, "level must be 0 or 1\n");
 		return -1;
 	}
 
 	rc=io_control(gpio_fd, GPIO_BIND_PIN, &pin, sizeof(pin));
 	if (rc<0) {
-		fprintf(env->io_fd, "Failed to bind pin %x, fault coude %d\n", pin, rc);
+		dprintf(env->io_fd, "Failed to bind pin %x, fault coude %d\n", pin, rc);
 		return -1;
 	}
 
@@ -252,13 +252,13 @@ int set_pin(int argc, char **argv, struct Env *env) {
 
 	rc=io_control(gpio_fd, GPIO_SET_FLAGS, &flags, sizeof(flags));
 	if (rc<0) {
-		fprintf(env->io_fd, "Failed to set pin %x flags, fault coude %d\n", pin, rc);
+		dprintf(env->io_fd, "Failed to set pin %x flags, fault coude %d\n", pin, rc);
 		return -1;
 	}
 
-	fprintf(env->io_fd, "Setting gpio pin %s to %d\n", argv[1], level);
+	dprintf(env->io_fd, "Setting gpio pin %s to %d\n", argv[1], level);
 	rc=io_control(gpio_fd, GPIO_SET_PIN, &level, sizeof(level));
-	fprintf(env->io_fd, "hit Return to release pin\n");
+	dprintf(env->io_fd, "hit Return to release pin\n");
 	io_read(env->io_fd, buf, 8);
 
 	io_close(gpio_fd);

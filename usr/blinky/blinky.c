@@ -108,16 +108,16 @@ static int blinky(int argc, char **argv, struct Env *env) {
 	return -1;
 #endif
 
-        fprintf(env->io_fd, "In starting blink tasks\n");
+        dprintf(env->io_fd, "In starting blink tasks\n");
 
 	if (argc!=2) {
-		 fprintf(env->io_fd, "need an argument on or off\n");
+		 dprintf(env->io_fd, "need an argument on or off\n");
 		 return -1;
 	}
 
 	if (strcmp(argv[1],"on")==0) {
 		if (bstate==1) {
-			fprintf(env->io_fd, "blinky already running\n");
+			dprintf(env->io_fd, "blinky already running\n");
 			return -1;
 		}
 		bstate=1;
@@ -136,11 +136,11 @@ static int blinky(int argc, char **argv, struct Env *env) {
 //	thread_create(blink_loop,&red,sizeof(red),256,"red_looping");
 	} else if (strcmp(argv[1],"off")==0) {
 		if (bstate==0) {
-			fprintf(env->io_fd, "blinky is not running\n");
+			dprintf(env->io_fd, "blinky is not running\n");
 			return -1;
 		}
 		bstate=0;
-		fprintf(env->io_fd, "stopping blinkies\n");
+		dprintf(env->io_fd, "stopping blinkies\n");
 		stopit=1;
 	}
 	return 0;
