@@ -210,7 +210,7 @@ int sys_brk(struct task *t, void *nbrk);
 /*****************************************************/
 
 
-
+int sys_udelay(unsigned int usec);
 //void *sys_sleep(unsigned int ms); does not seem to be used, remove ?
 void *sys_sleepon(struct blocker *so, unsigned int *ms_sleep);
 void *sys_wakeup(struct blocker *so);

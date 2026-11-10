@@ -43,7 +43,7 @@ static struct device_handle *io_dh=0;
 static struct driver *syslog_drv;
 static struct device_handle *syslog_dh=0;
 
-typedef int (*P_STR)(char *);
+typedef int (*P_STR)(const char *);
 typedef int (*P_CHAR)(char );
 
 
@@ -55,7 +55,7 @@ P_CHAR p_char=0x80000948;
 #define PBUF_SIZE 4096
 static char pbuf[PBUF_SIZE];
 static int i_pbuf=0;
-int dum_p_str(char *dum) {
+int dum_p_str(const char *dum) {
 	int len=strlen(dum);
 	if ((i_pbuf+len)<PBUF_SIZE) {
 		memcpy(&pbuf[i_pbuf],dum,len);
@@ -316,7 +316,7 @@ int sys_printf(const char *fmt, ...) {
 	va_list ap;
 	char numericbuf[16];
 	const char *ppos=fmt;
-	int polled=0;
+//	int polled=0;
 
 	/* protect against recursion */
 	if (__sync_fetch_and_or(&in_print,1)) {
@@ -501,7 +501,6 @@ int sys_log(const char *fmt, ...) {
 	char sbuf[256];
 	va_list arg;
 	int size;
-	int nend;
 
 	if (!syslog_dh) return -1;
 
