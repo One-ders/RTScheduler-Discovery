@@ -157,6 +157,7 @@ extern volatile unsigned int tq_tic;
 void start_up(void);
 void init_sys(void);
 void start_sys(void);
+int  halt();
 void *getSlab_256(void);
 void *get_page(void);
 void put_page(void *);
@@ -174,6 +175,11 @@ int map_stack_page(unsigned long int addr,unsigned int size);
 int map_tmp_stack_page(unsigned long int addr,unsigned int size);
 int map_next_stack_page(unsigned long int new_addr, unsigned long int old_addr);
 int unmap_tmp_stack_page(void);
+int mapmem(struct task *t, unsigned long int vaddr,
+			unsigned long int paddr,
+			unsigned int attr);
+unsigned long int get_mmap_vaddr(struct task *current, unsigned int size);
+
 int activate_memory_protection(void);
 struct task *create_user_context(void);
 int load_init(struct task *);

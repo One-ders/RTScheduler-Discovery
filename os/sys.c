@@ -366,7 +366,7 @@ static int create_task(unsigned long int *svc_sp) {
 	}
 	t->asp=current->asp;
 	t->asp->ref++;
-	setup_return_stack(t,(void *)stackp,(unsigned long int)tca->fnc,(unsigned long int)__usr_svc_destroy_self,(void *)uval,8);
+	setup_return_stack(t,(void *)stackp,(unsigned long int)tca->fnc,(unsigned long int)__usr_svc_destroy_self,(void *)uval,(void *)8);
 
 	t->state=TASK_STATE_READY;
 	t->name=tca->name;
@@ -1436,7 +1436,7 @@ void *sys_wakeup_from_list(struct blocker_list *bl) {
 }
 
 static int destroy_thread(struct task *t) {
-	int rc;
+//	int rc;
 	unsigned long int cpu_flags=disable_interrupts();
 	TRACE_ENTER(DESTROY_THREAD);
 	if (t->blocker.wakeup_tic) {
@@ -1731,7 +1731,7 @@ void start_sys(void) {
 	t->state=TASK_STATE_READY;
 	t->prio_flags=3;
 	stackp=((unsigned long int)t)+4096;
-	t->estack=((unsigned long int)t)+2048;
+	t->estack=(void *)(((unsigned long int)t)+2048);
 	stackp=stackp-8;
 	if (system_params.user_console_dev) {
 		strcpy((void *)stackp,system_params.user_console_dev);
