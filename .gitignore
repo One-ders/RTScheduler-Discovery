@@ -8,3 +8,8 @@ boards/MB997C/system_params.o
 boards/MB997C/usr/
 incl/io.h
 incl/sys.h
+boards/*/incl/
+boards/*/usr/
+boards/*/obj/
+boards/*/myCore*
+boards/*/system_params.*
