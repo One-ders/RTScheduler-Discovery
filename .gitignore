@@ -1,0 +1,10 @@
+*.o
+myCore
+obj/
+boards/MB997C/incl/
+boards/MB997C/myCore
+boards/MB997C/obj/
+boards/MB997C/system_params.o
+boards/MB997C/usr/
+incl/io.h
+incl/sys.h
