@@ -3,9 +3,9 @@ DRIVERS+=stddrv.o
 DRIVERS+=led_drv.o
 DRIVERS+=gpio_drv.o
 DRIVERS+=usart_drv.o
-#DRIVERS+=usb_core_drv.o
-#DRIVERS+=usb_serial_drv.o
-#DRIVERS+=hr_timer.o
+DRIVERS+=usb_core_drv.o
+DRIVERS+=usb_serial_drv.o
+DRIVERS+=hr_timer.o
 
 DTARGETS=$(DRIVERS:.o=)
 DOBJS=$(patsubst %, $(OBJ)/drv_obj/%, $(DRIVERS))
@@ -246,14 +246,14 @@ $(OBJ)/arch/stm32/%: $(TOP)/arch/stm32/%
 #	lndir $< $@
 
 
-$(OBJ)/drv_obj/hr_timer.o: stm32f407 $(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o
+$(OBJ)/drv_obj/hr_timer.o: $(OBJ)/arch/stm32/hr_timer/hr_timer.o
 	mkdir -p $(OBJ)/drv_obj
-	cp  $(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o $@
+	cp  $(OBJ)/arch/stm32/hr_timer/hr_timer.o $@
 
-$(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o: $(OBJ)/arch/stm32/stm32f407/hr_timer
+$(OBJ)/arch/stm32/hr_timer/hr_timer.o: $(OBJ)/arch/stm32/hr_timer
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 
-$(OBJ)/arch/stm32/stm32f407/hr_timer: $(TOP)/arch/stm32/stm32f407/hr_timer
+$(OBJ)/arch/stm32/hr_timer: $(TOP)/arch/stm32/hr_timer
 	mkdir -p $@
 	lndir $< $@
 
