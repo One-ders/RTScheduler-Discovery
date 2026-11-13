@@ -32,7 +32,8 @@ else
 TOP:=$(KREL)
 BDIR:=$(KREL)
 endif
-GCC_BASE:=$(shell dirname `which arm-none-eabi-gcc`)/..
+#GCC_BASE:=$(shell dirname `which arm-none-eabi-gcc`)/..
+GCC_INTERNAL_INC:=$(shell arm-none-eabi-gcc -print-file-name=include)
 
 export AS:=arm-none-eabi-as
 export CC:=arm-none-eabi-gcc
@@ -41,7 +42,9 @@ export OBJCOPY:=arm-none-eabi-objcopy
 
 CFLAGS=-I. -I$(BDIR)/incl -I$(BDIR) -I$(BDIR)/incl/stm32/stm32f407/incl -I$(BDIR)/incl/stm32 -I$(BDIR)/incl/stm32/incl -g -O2 -DDEBUG -DBOARD_$(BOARD) -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
-CFLAGS_USR:=-I$(TOP)/usr/incl -I$(BDIR) -I$(GCC_BASE)/lib/gcc/arm-none-eabi/4.8.3/include -g -Os -DDEBUG -DBOARD_$(BOARD) -fno-builtin -ffreestanding -nostdinc -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
+#CFLAGS_USR:=-I$(TOP)/usr/incl -I$(BDIR) -I$(GCC_BASE)/lib/gcc/arm-none-eabi/4.8.3/include -g -Os -DDEBUG -DBOARD_$(BOARD) -fno-builtin -ffreestanding -nostdinc -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
+
+CFLAGS_USR:=-I$(TOP)/usr/incl -I$(BDIR) -I$(GCC_INTERNAL_INC) -g -Os -DDEBUG -DBOARD_$(BOARD) -fno-builtin -ffreestanding -nostdinc -Wall -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=soft -fno-builtin
 
 #LDFLAGS=-g -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fno-builtin
 
@@ -67,10 +70,11 @@ all: myCore
 rel: myCore
 	tar -cvzf krel-$(VERSION).tgz $(RELFILES)
 
-myCore: $(BASEBUILD_INCL) os version stm32f407 stm32f42xxx stm32 $(DTARGETS) usr.bin.o
+myCore: $(BASEBUILD_INCL) os system_params.o version stm32f407 stm32f42xxx stm32 $(DTARGETS) usr.bin.o
 	$(CC) $(LDFLAGS) -o $@ $(OBJ)/os/init_sect.o \
 				$(OBJ)/version.c \
 				$(OBJ)/os/os.o \
+				./system_params.o \
 				$(OBJ)/arch/stm32/stm32f407/stm32f407.o \
 				$(OBJ)/arch/stm32/stm32.o \
 				$(DOBJS) \
@@ -128,7 +132,6 @@ $(OBJ)/usr/lib/arm/syscall_lib.o: $(TOP)/usr/lib
 	lndir $< $(OBJ)/usr/lib
 	CFLAGS="$(CFLAGS_USR)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $(OBJ)/usr/lib/arm
 
-
 $(OBJ)/usr/sys_cmd/sys_cmd.o: $(OBJ)/usr/lib/usrlib.o $(OBJ)/usr/sys_cmd
 	CFLAGS="$(CFLAGS_USR)" TOP="$(TOP)" OBJ="$(OBJ)" LDFLAGS="$(LDFLAGS_USR)" $(MAKE) -C $(OBJ)/usr/sys_cmd
 
@@ -153,6 +156,11 @@ endif
 
 ifeq ($(KREL),)
 usr_drv:
+endif
+
+ifneq ($(KREL),)
+$(OBJ)/os/os.o:
+	make -C $(KREL)
 endif
 
 ifeq ($(KREL),)
@@ -182,6 +190,8 @@ $(OBJ)/drv_obj/usb_serial_drv.o: $(OBJ)/drivers/usb_serial
 $(OBJ)/drivers/usb_serial: $(TOP)/drivers/usb_serial
 	mkdir -p $@
 	lndir $< $@
+
+system_params.o: system_params.c
 
 $(OBJ)/arch/stm32/stm32.o: $(OBJ)/arch/stm32
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
@@ -240,14 +250,14 @@ $(OBJ)/arch/stm32/%: $(TOP)/arch/stm32/%
 #	mkdir -p $@
 #	lndir $< $@
 
-$(OBJ)/drv_obj/hr_timer.o: stm32f407 $(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o
+$(OBJ)/drv_obj/hr_timer.o: $(OBJ)/arch/stm32//hr_timer/hr_timer.o
 	mkdir -p $(OBJ)/drv_obj
-	cp  $(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o $@
+	cp  $(OBJ)/arch/stm32/hr_timer/hr_timer.o $@
 
-$(OBJ)/arch/stm32/stm32f407/hr_timer/hr_timer.o: $(OBJ)/arch/stm32/stm32f407/hr_timer
+$(OBJ)/arch/stm32/hr_timer/hr_timer.o: $(OBJ)/arch/stm32/hr_timer
 	CFLAGS="$(CFLAGS)" TOP=$(TOP) OBJ=$(OBJ) $(MAKE) -C $<
 
-$(OBJ)/arch/stm32/stm32f407/hr_timer: $(TOP)/arch/stm32/stm32f407/hr_timer
+$(OBJ)/arch/stm32/hr_timer: $(TOP)/arch/stm32/hr_timer
 	mkdir -p $@
 	lndir $< $@
 

@@ -1,7 +1,8 @@
 
 
 //#define SYS_CLOCK	180000000
-#define SYS_CLOCK	168000000
+#define SYS_CLK_HI	168000000
+#define SYS_CLK_LO	16000000
 
 #define MAX_TASKS 	256
 #define TQ_SIZE         1024
@@ -169,6 +170,7 @@
 #define USB_VBUS	GPIO_PIN(GPIO_PB,13)
 #define USB_DM		GPIO_PIN(GPIO_PB,14)
 #define USB_DP		GPIO_PIN(GPIO_PB,15)
+
 #if 0
 #define USB_PSO		GPIO_PIN(GPIO_PC,4)
 #define USB_QC		GPIO_PIN(GPIO_PC,5)
