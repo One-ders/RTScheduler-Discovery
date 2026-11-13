@@ -12,4 +12,4 @@ boards/*/incl/
 boards/*/usr/
 boards/*/obj/
 boards/*/myCore*
-boards/*/system_params.*
+boards/*/system_params.o
